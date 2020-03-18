@@ -12,8 +12,7 @@ class ABConfig {
     var firstVersionCode = 0//首次接入ABTest的应用版本号
     var nowVersionCode = 0//当前测试首次接入的应用版本号
     var name  : String = ""//测试名称
-    var dataA : String = ""
-    var dataB : String = ""
+    var dataArray : Array<String> = arrayOf()
     var endDate : String ?= null
 
 }

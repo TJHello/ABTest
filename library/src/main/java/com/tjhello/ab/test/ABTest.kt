@@ -13,7 +13,20 @@ import java.io.File
  * 时间:2020/2/24 10:21
  * 使用:
  * 说明:
- **/
+ * Copyright 2020 TJHello
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 class ABTest(private val context: Context) {
 
     companion object{
@@ -102,7 +115,6 @@ class ABTest(private val context: Context) {
     }
 
 
-
     private fun getValue(name: String):String?{
         abConfigList?.let {list->
             val abConfig = list.find {
@@ -110,19 +122,19 @@ class ABTest(private val context: Context) {
             }
             if(abConfig!=null){
                 if(canABTest(abConfig)){
-                    val random = if(abHistoryMap.containsKey(name)){
-                        abHistoryMap[name]?:(Math.random()*2).toInt()
+                    val testLength = abConfig.dataArray.size
+                    var random = if(abHistoryMap.containsKey(name)){
+                        abHistoryMap[name]?:(Math.random()*testLength).toInt()
                     }else{
                         (Math.random()*2).toInt()
+                    }
+                    if(random>=testLength){
+                        random = (Math.random()*testLength).toInt()
                     }
                     abHistoryMap[name] = random
                     val tools = Tools(context)
                     tools.setSharedPreferencesValue(KEY_AB_HISTORY,Gson().toJson(abHistoryMap))
-                    return if(random==0){
-                        abConfig.dataA
-                    }else{
-                        abConfig.dataB
-                    }
+                    return abConfig.dataArray[random]
                 }
             }
         }
