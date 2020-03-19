@@ -16,6 +16,10 @@ android {
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles 'consumer-rules.pro'
+
+        packagingOptions {
+            exclude 'META-INF/library_release.kotlin_module'
+        }
     }
 
     buildTypes {
@@ -50,8 +54,7 @@ dependencies {
 }
 
 
-
-ext.ver = '0.9.1'
+ext.ver = '0.9.6'
 ext.GROUP_ID = 'com.TJHello'
 ext.POM_ARTIFACT_ID = 'ABTest'
 

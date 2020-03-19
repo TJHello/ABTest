@@ -105,12 +105,12 @@ class ABTest(private val context: Context) {
 
     fun event(eventId:String,data:String){
         if(abConfigList.isNullOrEmpty()) return
-        val map = createMap(mutableMapOf("data" to data))
+        val map = createMap(eventId,mutableMapOf("data" to data))
         eventBase(context,eventId,map)
     }
 
     fun event(eventId:String,mutableMap: MutableMap<String,String>){
-        val map = createMap(mutableMap)
+        val map = createMap(eventId,mutableMap)
         eventBase(context,eventId,map)
     }
 
@@ -126,7 +126,7 @@ class ABTest(private val context: Context) {
                     var random = if(abHistoryMap.containsKey(name)){
                         abHistoryMap[name]?:(Math.random()*testLength).toInt()
                     }else{
-                        (Math.random()*2).toInt()
+                        (Math.random()*testLength).toInt()
                     }
                     if(random>=testLength){
                         random = (Math.random()*testLength).toInt()
@@ -152,14 +152,17 @@ class ABTest(private val context: Context) {
         log("[event]:$eventId=>\n"+Gson().toJson(map))
     }
 
-    private fun createMap(mutableMap: MutableMap<String, String>):MutableMap<String,String>{
+    private fun createMap(eventId: String,mutableMap: MutableMap<String, String>):MutableMap<String,String>{
         val keySet = mutableMap.keys
         keySet.forEach {
             val value = mutableMap[it]
             if(value!=null){
                 abConfigList?.forEach {abConfig->
-                    if(canABTest(abConfig)){
-                        mutableMap[it+abConfig.name] = value
+                    if(abConfig.listenEventArray.isNullOrEmpty()||abConfig.listenEventArray.contains(eventId)){
+                        if(canABTest(abConfig)){
+                            mutableMap[it+"_"+abConfig.name+":"+getValue(abConfig.name)] = value
+                            mutableMap[it+"_"+abConfig.name+":"+"all"] = value
+                        }
                     }
                 }
             }

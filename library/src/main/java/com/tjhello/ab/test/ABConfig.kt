@@ -14,5 +14,6 @@ class ABConfig {
     var name  : String = ""//测试名称
     var dataArray : Array<String> = arrayOf()
     var endDate : String ?= null
+    var listenEventArray = mutableListOf<String>()
 
 }
