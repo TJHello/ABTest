@@ -75,9 +75,9 @@ data |
 
 **接入ABTest后->**
 
-data | data_Test_A | data_Test_B | data_Test_B | data_Test_all |
-:---:|:---:|:---:|:---:|:---:|
-1 | 1 | 1 | 1 | 1 |
-2 | 2 | 2 | 2 | 2 |
-3 | 3 | 3 | 3 | 3 |
+data | data_Test_A | data_Test_B | data_Test_C | data_Test_D | data_Test_all |
+:---:|:---:|:---:|:---:|:---:|:---:|
+1 | 1 | 1 | 1 | 1 | 1 |
+2 | 2 | 2 | 2 | 2 | 2 |
+3 | 3 | 3 | 3 | 3 | 3 |
 
