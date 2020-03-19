@@ -42,6 +42,7 @@ override fun onCreate() {
             this.isOnlyNew = true//是否只测试新增的用户
             this.name = "Test"
             this.nowVersionCode = getVersionCode()//当前APP版本号
+            this.listenEventArray = arrayOf("data")//监听的事件,空的时候监听所有事件
         }))
 }
 
