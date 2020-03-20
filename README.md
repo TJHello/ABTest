@@ -1,5 +1,5 @@
 # ABTest-UM
-**一款简单易用的ABTest开源库-基于友盟打点**
+**一款简单易用的ABTest开源库-支持友盟**
 
 ## 使用步骤
 
@@ -40,8 +40,8 @@ override fun onCreate() {
             this.dataArray = arrayOf("A","B","C","D")//ABCD方案,可以任意文本
             this.firstVersionCode = 0//第一次接入ABTest的版本号
             this.isOnlyNew = true//是否只测试新增的用户
-            this.name = "Test"
-            this.nowVersionCode = getVersionCode()//当前APP版本号
+            this.name = "Test"//测试唯一编号，不能与历史使用过的重复
+            this.nowVersionCode = 1//首次安装版本号大于等于这个值才是新用户。
             this.listenEventArray = arrayOf("data")//监听的事件,空的时候监听所有事件
         }))
 }

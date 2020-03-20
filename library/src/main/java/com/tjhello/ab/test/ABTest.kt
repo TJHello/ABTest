@@ -6,6 +6,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.umeng.analytics.MobclickAgent
 import java.io.File
+import java.util.*
 
 
 /**
@@ -32,7 +33,11 @@ class ABTest(private val context: Context) {
     companion object{
         private const val KEY_VERSION_CODE = "ab_test_version_code"
         private const val KEY_AB_HISTORY = "ab_test_ab_history"
+        private const val KEY_UNIQUE_USER = "ab_test_unique_user"
+        private const val KEY_DAY_RETAIN = "ab_test_day_retain"
+        private const val KEY_DAY_EVENT = "ab_test_day_event"
         private const val TAG = "ABTestLog"
+        var isDebug = false
 
         private var abConfigList : MutableList<ABConfig> ?= null
         private var abHistoryMap = mutableMapOf<String,Int>()
@@ -43,7 +48,7 @@ class ABTest(private val context: Context) {
         fun init(context: Context,abConfigList: MutableList<ABConfig>?){
             if(abConfigList==null) return
             this.abConfigList = abConfigList
-
+            log("[init]:data:${abConfigList.size}")
             val tools = Tools(context)
             nowVersionCode = getNowVersionCode(context)
             firstVersionCode = tools.getSharedPreferencesValue(KEY_VERSION_CODE,-1)?:-1
@@ -53,14 +58,54 @@ class ABTest(private val context: Context) {
             }
 
             val abHistoryJSON = tools.getSharedPreferencesValue(KEY_AB_HISTORY, "")?:""
-            try {
-                abHistoryMap = if(abHistoryJSON.isEmpty()){
+            abHistoryMap = try {
+                 if(abHistoryJSON.isEmpty()){
                     mutableMapOf()
                 }else{
                     Gson().fromJson(abHistoryJSON, object : TypeToken<MutableMap<String, Int>>() {}.type)
                 }
             }catch (e:Exception){
                 e.printStackTrace()
+                mutableMapOf()
+            }
+
+            var uniqueUser = tools.getSharedPreferencesValue(KEY_UNIQUE_USER,"")
+            val dayRetain = tools.getSharedPreferencesValue(KEY_DAY_RETAIN,"")
+            var dayEvent = tools.getSharedPreferencesValue(KEY_DAY_EVENT,"")
+            abConfigList.forEach {
+                val value = getValue(context,it.name)
+                if(value!=null){
+                    if(canABTest(it)){
+                        if(uniqueUser==null||!uniqueUser.contains(it.name)){
+                            uniqueUser+="${it.name},"
+                            eventBase(context,it.name, mutableMapOf("base_$value" to "user"))
+                            tools.setSharedPreferencesValue(KEY_UNIQUE_USER,uniqueUser)
+                        }
+                        eventBase(context,it.name, mutableMapOf("base_$value" to "startApp"))
+                        val mapDayRetain = if(dayRetain.isNullOrEmpty()) {
+                            mutableMapOf<String,Int>()
+                        } else {
+                            Gson().fromJson(dayRetain,object : TypeToken<MutableMap<String,Int>>(){}.type)
+                        }
+                        val dayNum = if(mapDayRetain.containsKey(it.name)){
+                            mapDayRetain[it.name]?:0
+                        }else{
+                            0
+                        }
+                        val nowDay = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
+                        val nowDayKey = String.format(Locale.getDefault(),"%s:%02d",it.name,nowDay)
+                        if(dayEvent.isNullOrEmpty()||!dayEvent.contains(nowDayKey)){
+
+                            eventBase(context,it.name, mutableMapOf("day_$value" to "$dayNum"))
+
+                            dayEvent+= "$nowDayKey,"
+                            tools.setSharedPreferencesValue(KEY_DAY_EVENT,dayEvent)
+
+                            mapDayRetain[it.name] = dayNum+1
+                            tools.setSharedPreferencesValue(KEY_DAY_RETAIN,Gson().toJson(mapDayRetain))
+                        }
+                    }
+                }
             }
         }
 
@@ -69,14 +114,58 @@ class ABTest(private val context: Context) {
             val packageInfo = packageManager.getPackageInfo(context.packageName, 0)
             return packageInfo.versionCode
         }
+
+        private fun canABTest(abConfig: ABConfig):Boolean{
+            val isPre = firstVersionCode>=abConfig.firstVersionCode//接入ABTest之后的用户
+            val isNow = firstVersionCode>=abConfig.nowVersionCode//当前测试新增用户
+            return if(abConfig.isOnlyNew) isPre&&isNow else isPre
+        }
+
+        private fun eventBase(context: Context,eventId: String,map: MutableMap<String,String>){
+            MobclickAgent.onEvent(context,eventId,map)
+            log("[event]:$eventId=>\n"+Gson().toJson(map))
+        }
+
+        private fun log(msg:String){
+            if(isDebug){
+                Log.i(TAG,msg)
+            }
+        }
+
+        private fun getValue(context : Context,name: String):String?{
+            abConfigList?.let {list->
+                synchronized(list){
+                    val abConfig = list.find {
+                        return@find it.name == name
+                    }
+                    if(abConfig!=null){
+                        val testLength = abConfig.dataArray.size
+                        var random = if(abHistoryMap.containsKey(name)){
+                            abHistoryMap[name]?:(Math.random()*testLength).toInt()
+                        }else{
+                            (Math.random()*testLength).toInt()
+                        }
+                        if(random>=testLength){
+                            random = (Math.random()*testLength).toInt()
+                        }
+                        abHistoryMap[name] = random
+                        val tools = Tools(context)
+                        tools.setSharedPreferencesValue(KEY_AB_HISTORY,Gson().toJson(abHistoryMap))
+                        return abConfig.dataArray[random]
+                    }
+                }
+            }
+
+            return null
+        }
     }
 
     fun getStringValue(name:String,def:String?) : String?{
-        return getValue(name)?:def
+        return getValue(context,name)?:def
     }
 
     fun getIntValue(name:String,def:Int):Int{
-        val value = getValue(name)
+        val value = getValue(context,name)
         if(value.isNullOrEmpty()){
             return def
         }else{
@@ -90,7 +179,7 @@ class ABTest(private val context: Context) {
     }
 
     fun getFloatValue(name:String,def:Float):Float{
-        val value = getValue(name)
+        val value = getValue(context,name)
         if(value.isNullOrEmpty()){
             return def
         }else{
@@ -115,53 +204,23 @@ class ABTest(private val context: Context) {
     }
 
 
-    private fun getValue(name: String):String?{
-        abConfigList?.let {list->
-            val abConfig = list.find {
-                return@find it.name == name
-            }
-            if(abConfig!=null){
-                if(canABTest(abConfig)){
-                    val testLength = abConfig.dataArray.size
-                    var random = if(abHistoryMap.containsKey(name)){
-                        abHistoryMap[name]?:(Math.random()*testLength).toInt()
-                    }else{
-                        (Math.random()*testLength).toInt()
-                    }
-                    if(random>=testLength){
-                        random = (Math.random()*testLength).toInt()
-                    }
-                    abHistoryMap[name] = random
-                    val tools = Tools(context)
-                    tools.setSharedPreferencesValue(KEY_AB_HISTORY,Gson().toJson(abHistoryMap))
-                    return abConfig.dataArray[random]
-                }
-            }
-        }
-        return null
-    }
-
-    private fun canABTest(abConfig: ABConfig):Boolean{
-        val isPre = firstVersionCode>=abConfig.firstVersionCode//接入ABTest之后的用户
-        val isNow = firstVersionCode>=abConfig.nowVersionCode//当前测试新增用户
-        return if(abConfig.isOnlyNew) isPre&&isNow else isPre
-    }
-
-    private fun eventBase(context: Context,eventId: String,map: MutableMap<String,String>){
-        MobclickAgent.onEvent(context,eventId,map)
-        log("[event]:$eventId=>\n"+Gson().toJson(map))
-    }
-
     private fun createMap(eventId: String,mutableMap: MutableMap<String, String>):MutableMap<String,String>{
-        val keySet = mutableMap.keys
-        keySet.forEach {
-            val value = mutableMap[it]
-            if(value!=null){
-                abConfigList?.forEach {abConfig->
-                    if(abConfig.listenEventArray.isNullOrEmpty()||abConfig.listenEventArray.contains(eventId)){
-                        if(canABTest(abConfig)){
-                            mutableMap[it+"_"+abConfig.name+":"+getValue(abConfig.name)] = value
-                            mutableMap[it+"_"+abConfig.name+":"+"all"] = value
+        if(abConfigList!=null){
+            synchronized(abConfigList!!) {
+                val keySet = mutableMap.keys.toHashSet()
+                keySet.forEach {
+                    val value = mutableMap[it]
+                    if(value!=null){
+                        abConfigList?.forEach {abConfig->
+                            if(abConfig.listenEventArray.isNullOrEmpty()||abConfig.listenEventArray.contains(eventId)){
+                                if(canABTest(abConfig)){
+                                    val data = getValue(context,abConfig.name)
+                                    if(data!=null){
+                                        mutableMap[it+"_"+abConfig.name+":"+data] = value
+                                        mutableMap[it+"_"+abConfig.name+":"+"all"] = value
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -171,8 +230,6 @@ class ABTest(private val context: Context) {
 
     }
 
-    private fun log(msg:String){
-        Log.i(TAG,msg)
-    }
+
 
 }
