@@ -1,5 +1,5 @@
 # ABTest-UM
-**一款简单易用的ABTest开源库-支持友盟**
+**一款简单易用的ABTest开源库-支持友盟，Firebase**
 
 ## 使用步骤
 
@@ -27,7 +27,8 @@ allprojects {
 
 ```
 dependencies {
-    implementation 'com.TJHello:ABTest:0.9.6'
+    //需要接入友盟或者Firebase打点，初始化以及接入需要自行处理。
+    implementation 'com.TJHello:ABTest:0.9.22'
 }
 ```
 
@@ -36,8 +37,9 @@ dependencies {
 ```kotlin
 override fun onCreate() {
     super.onCreate()
-    ABTest.init(this, mutableListOf(ABConfig().apply {
-            this.dataArray = arrayOf("A","B","C","D")//ABCD方案,可以任意文本
+    val isNew = true//自己判断当前用户是否是新用户
+    ABTest.init(this,isNew,mutableListOf(ABConfig().apply {
+            this.dataArray = arrayOf("A","B","C","D")//ABCD方案,打点的时候以这个来区分。
             this.firstVersionCode = 0//第一次接入ABTest的版本号
             this.isOnlyNew = true//是否只测试新增的用户
             this.name = "Test"//测试唯一编号，不能与历史使用过的重复

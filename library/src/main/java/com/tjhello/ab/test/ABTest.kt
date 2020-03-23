@@ -4,8 +4,6 @@ import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.umeng.analytics.MobclickAgent
-import java.io.File
 import java.util.*
 
 
@@ -43,10 +41,16 @@ class ABTest(private val context: Context) {
         private var abHistoryMap = mutableMapOf<String,Int>()
         private var firstVersionCode = -1
         private var nowVersionCode = -1
+        private var hasUmeng = false
+        private var hasFirebase = false
+        private var isNewUser = false
 
         @JvmStatic
-        fun init(context: Context,abConfigList: MutableList<ABConfig>?){
+        fun init(context: Context,isNew:Boolean,abConfigList: MutableList<ABConfig>?){
             if(abConfigList==null) return
+            hasUmeng = checkUmengSDK()
+            hasFirebase = checkFirebaseSDK()
+            isNewUser = isNew
             this.abConfigList = abConfigList
             log("[init]:data:${abConfigList.size}")
             val tools = Tools(context)
@@ -118,11 +122,16 @@ class ABTest(private val context: Context) {
         private fun canABTest(abConfig: ABConfig):Boolean{
             val isPre = firstVersionCode>=abConfig.firstVersionCode//接入ABTest之后的用户
             val isNow = firstVersionCode>=abConfig.nowVersionCode//当前测试新增用户
-            return if(abConfig.isOnlyNew) isPre&&isNow else isPre
+            return if(abConfig.isOnlyNew) isPre&&isNow&&isNewUser else isPre
         }
 
         private fun eventBase(context: Context,eventId: String,map: MutableMap<String,String>){
-            MobclickAgent.onEvent(context,eventId,map)
+            if(hasUmeng){
+                UMengHandler.event(context,eventId,map)
+            }
+            if(hasFirebase){
+                FirebaseHandler.event(context,eventId,map)
+            }
             log("[event]:$eventId=>\n"+Gson().toJson(map))
         }
 
@@ -157,6 +166,25 @@ class ABTest(private val context: Context) {
             }
 
             return null
+        }
+
+
+        private fun checkUmengSDK():Boolean{
+            return containsClass("com.umeng.analytics.MobclickAgent")
+        }
+
+        private fun checkFirebaseSDK():Boolean{
+            return containsClass("com.google.firebase.analytics.FirebaseAnalytics")
+        }
+
+        private fun containsClass(name:String):Boolean{
+            return try {
+                Class.forName(name)
+                true
+            }catch (e:ClassNotFoundException){
+                log("Not imported:$name")
+                false
+            }
         }
     }
 
@@ -203,7 +231,6 @@ class ABTest(private val context: Context) {
         eventBase(context,eventId,map)
     }
 
-
     private fun createMap(eventId: String,mutableMap: MutableMap<String, String>):MutableMap<String,String>{
         if(abConfigList!=null){
             synchronized(abConfigList!!) {
@@ -229,7 +256,5 @@ class ABTest(private val context: Context) {
         return mutableMap
 
     }
-
-
 
 }
