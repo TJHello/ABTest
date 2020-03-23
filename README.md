@@ -37,7 +37,7 @@ dependencies {
 ```kotlin
 override fun onCreate() {
     super.onCreate()
-    val isNew = true//自己判断当前用户是否是新用户
+    val isNew = true//自己判断当前用户是否是新用户，如果一开始就接入了ABTest，可以写成true。
     ABTest.init(this,isNew,mutableListOf(ABConfig().apply {
             this.dataArray = arrayOf("A","B","C","D")//ABCD方案,打点的时候以这个来区分。
             this.firstVersionCode = 0//第一次接入ABTest的版本号
