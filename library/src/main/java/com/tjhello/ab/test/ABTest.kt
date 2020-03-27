@@ -5,6 +5,7 @@ import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.util.*
+import kotlin.math.max
 
 
 /**
@@ -57,7 +58,11 @@ class ABTest(private val context: Context) {
             nowVersionCode = getNowVersionCode(context)
             firstVersionCode = tools.getSharedPreferencesValue(KEY_VERSION_CODE,-1)?:-1
             if(firstVersionCode==-1){
-                firstVersionCode = nowVersionCode
+                firstVersionCode = if(isNew){
+                    nowVersionCode
+                }else{
+                    max(1,nowVersionCode-1)
+                }
                 tools.setSharedPreferencesValue(KEY_VERSION_CODE, firstVersionCode)
             }
 
@@ -122,7 +127,7 @@ class ABTest(private val context: Context) {
         private fun canABTest(abConfig: ABConfig):Boolean{
             val isPre = firstVersionCode>=abConfig.firstVersionCode//接入ABTest之后的用户
             val isNow = firstVersionCode>=abConfig.nowVersionCode//当前测试新增用户
-            return if(abConfig.isOnlyNew) isPre&&isNow&&isNewUser else isPre
+            return if(abConfig.isOnlyNew) isPre&&isNow else isPre
         }
 
         private fun eventBase(context: Context,eventId: String,map: MutableMap<String,String>){
@@ -243,8 +248,8 @@ class ABTest(private val context: Context) {
                                 if(canABTest(abConfig)){
                                     val data = getValue(context,abConfig.name)
                                     if(data!=null){
-                                        mutableMap[it+"_"+abConfig.name+":"+data] = value
-                                        mutableMap[it+"_"+abConfig.name+":"+"all"] = value
+                                        mutableMap[it+"_"+abConfig.name+"_"+data] = value
+                                        mutableMap[it+"_"+abConfig.name+"_"+"all"] = value
                                     }
                                 }
                             }
