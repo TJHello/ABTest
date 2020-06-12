@@ -37,23 +37,19 @@ class ABTest(private val context: Context) {
         private const val KEY_DAY_EVENT = "ab_test_day_event"
         private const val TAG = "ABTestLog"
         var isDebug = false
+        private var fixedValue = mutableMapOf<String,String>()
 
-        private var abConfigList : MutableList<ABConfig> ?= null
+        private var abConfigList : MutableList<ABConfig> = mutableListOf()
         private var abHistoryMap = mutableMapOf<String,Int>()
         private var firstVersionCode = -1
         private var nowVersionCode = -1
-        private var hasUmeng = false
-        private var hasFirebase = false
-        private var isNewUser = false
+        private var hasUmeng = checkUmengSDK()
+        private var hasFirebase = checkFirebaseSDK()
+
+        private lateinit var timeTackHelper: TimeTackHelper
 
         @JvmStatic
-        fun init(context: Context,isNew:Boolean,abConfigList: MutableList<ABConfig>?){
-            if(abConfigList==null) return
-            hasUmeng = checkUmengSDK()
-            hasFirebase = checkFirebaseSDK()
-            isNewUser = isNew
-            this.abConfigList = abConfigList
-            log("[init]:data:${abConfigList.size}")
+        fun init(context: Context,isNew:Boolean):ABTest{
             val tools = Tools(context)
             nowVersionCode = getNowVersionCode(context)
             firstVersionCode = tools.getSharedPreferencesValue(KEY_VERSION_CODE,-1)?:-1
@@ -65,7 +61,6 @@ class ABTest(private val context: Context) {
                 }
                 tools.setSharedPreferencesValue(KEY_VERSION_CODE, firstVersionCode)
             }
-
             val abHistoryJSON = tools.getSharedPreferencesValue(KEY_AB_HISTORY, "")?:""
             abHistoryMap = try {
                  if(abHistoryJSON.isEmpty()){
@@ -77,44 +72,29 @@ class ABTest(private val context: Context) {
                 e.printStackTrace()
                 mutableMapOf()
             }
+            return ABTest(context)
+        }
 
-            var uniqueUser = tools.getSharedPreferencesValue(KEY_UNIQUE_USER,"")
-            val dayRetain = tools.getSharedPreferencesValue(KEY_DAY_RETAIN,"")
-            var dayEvent = tools.getSharedPreferencesValue(KEY_DAY_EVENT,"")
-            abConfigList.forEach {
-                val value = getValue(context,it.name)
-                if(value!=null){
-                    if(canABTest(it)){
-                        if(uniqueUser==null||!uniqueUser.contains(it.name)){
-                            uniqueUser+="${it.name},"
-                            eventBase(context,it.name, mutableMapOf("base_$value" to "user"))
-                            tools.setSharedPreferencesValue(KEY_UNIQUE_USER,uniqueUser)
-                        }
-                        eventBase(context,it.name, mutableMapOf("base_$value" to "startApp"))
-                        val mapDayRetain = if(dayRetain.isNullOrEmpty()) {
-                            mutableMapOf<String,Int>()
-                        } else {
-                            Gson().fromJson(dayRetain,object : TypeToken<MutableMap<String,Int>>(){}.type)
-                        }
-                        val dayNum = if(mapDayRetain.containsKey(it.name)){
-                            mapDayRetain[it.name]?:0
-                        }else{
-                            0
-                        }
-                        val nowDay = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
-                        val nowDayKey = String.format(Locale.getDefault(),"%s:%02d",it.name,nowDay)
-                        if(dayEvent.isNullOrEmpty()||!dayEvent.contains(nowDayKey)){
+        @JvmStatic
+        fun isNewUser(versionCode:Int):Boolean{
+            return firstVersionCode>=versionCode
+        }
 
-                            eventBase(context,it.name, mutableMapOf("day_$value" to "$dayNum"))
+        @JvmStatic
+        fun onPause(){
+            timeTackHelper.onPause()
+        }
 
-                            dayEvent+= "$nowDayKey,"
-                            tools.setSharedPreferencesValue(KEY_DAY_EVENT,dayEvent)
+        @JvmStatic
+        fun onResume(){
+            timeTackHelper.onResume()
+        }
 
-                            mapDayRetain[it.name] = dayNum+1
-                            tools.setSharedPreferencesValue(KEY_DAY_RETAIN,Gson().toJson(mapDayRetain))
-                        }
-                    }
-                }
+        @JvmStatic
+        fun onExit(context: Context){
+            if(hasUmeng){
+                timeTackHelper.onPause()
+                UMengHandler.onExit(context)
             }
         }
 
@@ -140,39 +120,46 @@ class ABTest(private val context: Context) {
             log("[event]:$eventId=>\n"+Gson().toJson(map))
         }
 
-        private fun log(msg:String){
+        @JvmStatic
+        internal fun log(msg:String){
             if(isDebug){
                 Log.i(TAG,msg)
             }
         }
 
         private fun getValue(context : Context,name: String):String?{
-            abConfigList?.let {list->
-                synchronized(list){
-                    val abConfig = list.find {
-                        return@find it.name == name
+            synchronized(abConfigList){
+                val abConfig = abConfigList.find {
+                    return@find it.name == name
+                }
+                if(abConfig!=null){
+                    if(!fixedValue.containsKey(name)){
+                        if(canABTest(abConfig)){
+                            val testLength = abConfig.dataArray.size
+                            var random = if(abHistoryMap.containsKey(name)){
+                                abHistoryMap[name]?:(Math.random()*testLength).toInt()
+                            }else{
+                                (Math.random()*testLength).toInt()
+                            }
+                            if(random>=testLength){
+                                random = (Math.random()*testLength).toInt()
+                            }
+                            abHistoryMap[name] = random
+                            val tools = Tools(context)
+                            tools.setSharedPreferencesValue(KEY_AB_HISTORY,Gson().toJson(abHistoryMap))
+                            return abConfig.dataArray[random]
+                        }
+                    }else{
+                        return fixedValue[name]
                     }
-                    if(abConfig!=null){
-                        val testLength = abConfig.dataArray.size
-                        var random = if(abHistoryMap.containsKey(name)){
-                            abHistoryMap[name]?:(Math.random()*testLength).toInt()
-                        }else{
-                            (Math.random()*testLength).toInt()
-                        }
-                        if(random>=testLength){
-                            random = (Math.random()*testLength).toInt()
-                        }
-                        abHistoryMap[name] = random
-                        val tools = Tools(context)
-                        tools.setSharedPreferencesValue(KEY_AB_HISTORY,Gson().toJson(abHistoryMap))
-                        return abConfig.dataArray[random]
+                }else{
+                    if(fixedValue.containsKey(name)){
+                        return fixedValue[name]
                     }
                 }
             }
-
             return null
         }
-
 
         private fun checkUmengSDK():Boolean{
             return containsClass("com.umeng.analytics.MobclickAgent")
@@ -191,6 +178,112 @@ class ABTest(private val context: Context) {
                 false
             }
         }
+
+        private class TimeTackListener(private val context: Context) : TimeTackHelper.Listener{
+            override fun onEventOnce(time: Long) {
+                synchronized(abConfigList){
+                    for (config in abConfigList) {
+                        val value = getValue(context,config.name)
+                        if(value!=null){
+                            if(canABTest(config)){
+                                eventBase(context,config.name, mutableMapOf("time_once_$value" to "${time/1000}"))
+                            }
+                        }
+                    }
+                }
+            }
+
+            override fun onEventDay(time: Long) {
+                synchronized(abConfigList){
+                    for (config in abConfigList) {
+                        val value = getValue(context,config.name)
+                        if(value!=null){
+                            if(canABTest(config)){
+                                eventBase(context,config.name, mutableMapOf("time_day_$value" to "${time/1000/60}"))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private fun createMap(context: Context,eventId: String,mutableMap: MutableMap<String, String>):MutableMap<String,String>{
+            synchronized(abConfigList) {
+                val keySet = mutableMap.keys.toHashSet()
+                keySet.forEach {
+                    val value = mutableMap[it]
+                    if(value!=null){
+                        abConfigList.forEach {abConfig->
+                            if(abConfig.listenEventArray.isNullOrEmpty()||abConfig.listenEventArray.contains(eventId)){
+                                if(canABTest(abConfig)){
+                                    val data = getValue(context,abConfig.name)
+                                    if(data!=null){
+                                        mutableMap[it+"_"+abConfig.name+"_"+data] = value
+                                        mutableMap[it+"_"+abConfig.name+"_"+"all"] = value
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return mutableMap
+
+        }
+    }
+
+    fun addTest(context: Context,config:ABConfig):ABTest{
+        abConfigList.add(config)
+        val tools = Tools(context)
+        var uniqueUser = tools.getSharedPreferencesValue(KEY_UNIQUE_USER,"")
+        val dayRetain = tools.getSharedPreferencesValue(KEY_DAY_RETAIN,"")
+        var dayEvent = tools.getSharedPreferencesValue(KEY_DAY_EVENT,"")
+        val value = getValue(context,config.name)
+        if(value!=null){
+            if(canABTest(config)){
+                if(uniqueUser==null||!uniqueUser.contains(config.name)){
+                    uniqueUser+="${config.name},"
+                    eventBase(context,config.name, mutableMapOf("base_$value" to "user"))
+                    tools.setSharedPreferencesValue(KEY_UNIQUE_USER,uniqueUser)
+                }
+                eventBase(context,config.name, mutableMapOf("base_$value" to "startApp"))
+                val mapDayRetain = if(dayRetain.isNullOrEmpty()) {
+                    mutableMapOf<String,Int>()
+                } else {
+                    Gson().fromJson(dayRetain,object : TypeToken<MutableMap<String,Int>>(){}.type)
+                }
+                val dayNum = if(mapDayRetain.containsKey(config.name)){
+                    mapDayRetain[config.name]?:0
+                }else{
+                    0
+                }
+                val nowDay = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
+                val nowDayKey = String.format(Locale.getDefault(),"%s:%02d",config.name,nowDay)
+                if(dayEvent.isNullOrEmpty()||!dayEvent.contains(nowDayKey)){
+
+                    eventBase(context,config.name, mutableMapOf("day_$value" to "$dayNum"))
+
+                    dayEvent+= "$nowDayKey,"
+                    tools.setSharedPreferencesValue(KEY_DAY_EVENT,dayEvent)
+
+                    mapDayRetain[config.name] = dayNum+1
+                    tools.setSharedPreferencesValue(KEY_DAY_RETAIN,Gson().toJson(mapDayRetain))
+                }
+            }
+        }
+        return this
+    }
+
+    fun fixedValue(name:String,value:String):ABTest{
+        fixedValue[name] = value
+        return this
+    }
+
+    fun startTimeTack():ABTest{
+        timeTackHelper = TimeTackHelper(context)
+        timeTackHelper.listener = TimeTackListener(context)
+        timeTackHelper.init()
+        return this
     }
 
     fun getStringValue(name:String,def:String?) : String?{
@@ -226,40 +319,13 @@ class ABTest(private val context: Context) {
     }
 
     fun event(eventId:String,data:String){
-        if(abConfigList.isNullOrEmpty()) return
-        val map = createMap(eventId,mutableMapOf("data" to data))
+        val map = createMap(context,eventId,mutableMapOf("data" to data))
         eventBase(context,eventId,map)
     }
 
     fun event(eventId:String,mutableMap: MutableMap<String,String>){
-        val map = createMap(eventId,mutableMap)
+        val map = createMap(context,eventId,mutableMap)
         eventBase(context,eventId,map)
-    }
-
-    private fun createMap(eventId: String,mutableMap: MutableMap<String, String>):MutableMap<String,String>{
-        if(abConfigList!=null){
-            synchronized(abConfigList!!) {
-                val keySet = mutableMap.keys.toHashSet()
-                keySet.forEach {
-                    val value = mutableMap[it]
-                    if(value!=null){
-                        abConfigList?.forEach {abConfig->
-                            if(abConfig.listenEventArray.isNullOrEmpty()||abConfig.listenEventArray.contains(eventId)){
-                                if(canABTest(abConfig)){
-                                    val data = getValue(context,abConfig.name)
-                                    if(data!=null){
-                                        mutableMap[it+"_"+abConfig.name+"_"+data] = value
-                                        mutableMap[it+"_"+abConfig.name+"_"+"all"] = value
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return mutableMap
-
     }
 
 }

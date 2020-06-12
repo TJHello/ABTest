@@ -28,13 +28,14 @@ class TJApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         ABTest.isDebug = true
-        ABTest.init(this, mutableListOf(ABConfig().apply {
-            this.dataArray = arrayOf("0","1","2","3","4")
+        ABTest.init(this, true)
+            .addTest(this,ABConfig().apply {
+            this.dataArray = arrayOf("0","1")
             this.firstVersionCode = 1
             this.isOnlyNew = true
             this.name = "NewUI2"
-            this.nowVersionCode = 2
-        }))
+            this.nowVersionCode = 2 })
+            .startTimeTack()
     }
 
 }

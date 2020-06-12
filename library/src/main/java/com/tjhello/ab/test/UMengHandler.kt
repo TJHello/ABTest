@@ -17,4 +17,8 @@ object UMengHandler {
         MobclickAgent.onEvent(context,eventId,map)
     }
 
+    fun onExit(context: Context){
+        MobclickAgent.onKillProcess(context)
+    }
+
 }
