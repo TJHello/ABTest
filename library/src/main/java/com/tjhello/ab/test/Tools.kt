@@ -41,7 +41,7 @@ class Tools(context: Context) {
         } else if (value is Boolean) {
             editor.putBoolean(key, (value as Boolean?)!!)
         }
-        editor.commit()
+        editor.apply()
     }
 
 }

@@ -38,14 +38,16 @@ dependencies {
 override fun onCreate() {
     super.onCreate()
     val isNew = true//自己判断当前用户是否是新用户，如果一开始就接入了ABTest，可以写成true。
-    ABTest.init(this,isNew,mutableListOf(ABConfig().apply {
-            this.dataArray = arrayOf("A","B","C","D")//ABCD方案,打点的时候以这个来区分。
-            this.firstVersionCode = 0//第一次接入ABTest的版本号
-            this.isOnlyNew = true//是否只测试新增的用户
-            this.name = "Test"//测试唯一编号，不能与历史使用过的重复
-            this.nowVersionCode = 1//首次安装版本号大于等于这个值才是新用户。
-            this.listenEventArray = arrayOf("data")//监听的事件,空的时候监听所有事件
-        }))
+    ABTest.isDebug = true
+    ABTest.init(this, true)
+    ABTest.getInstance()
+        .addTest(this,ABConfig().apply {//添加一项ABTest
+            this.dataArray = arrayOf("0","1")
+            this.firstVersionCode = 1
+            this.isOnlyNew = true
+            this.name = "NewUI2"
+            this.nowVersionCode = 2 })
+        .startTimeTack()//开启游戏时长统计功能
 }
 
 ```
@@ -57,7 +59,7 @@ override fun onCreate() {
 ```kotlin
 //MobclickAgent.onEvent(context, eventId, map)
 
-ABTest(context).event(eventId,map)
+ABTest.getInstance().event(eventId,map)
 
 ```
 
@@ -77,9 +79,9 @@ data |
 
 **接入ABTest后->**
 
-data | data_Test_A | data_Test_B | data_Test_C | data_Test_D | data_Test_all |
-:---:|:---:|:---:|:---:|:---:|:---:|
-1 | 1 | 1 | 1 | 1 | 1 |
-2 | 2 | 2 | 2 | 2 | 2 |
-3 | 3 | 3 | 3 | 3 | 3 |
+data | data_Test_A | data_Test_B | data_Test_C | data_Test_D |
+:---:|:---:|:---:|:---:|:---:|
+1 | 1 | 1 | 1 | 1 |
+2 | 2 | 2 | 2 | 2 |
+3 | 3 | 3 | 3 | 3 |
 

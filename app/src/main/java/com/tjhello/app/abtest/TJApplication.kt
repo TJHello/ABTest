@@ -29,13 +29,14 @@ class TJApplication : Application() {
         super.onCreate()
         ABTest.isDebug = true
         ABTest.init(this, true)
-            .addTest(this,ABConfig().apply {
+        ABTest.getInstance()
+            .addTest(this,ABConfig().apply {//添加一项ABTest
             this.dataArray = arrayOf("0","1")
             this.firstVersionCode = 1
             this.isOnlyNew = true
             this.name = "NewUI2"
             this.nowVersionCode = 2 })
-            .startTimeTack()
+            .startTimeTack()//开启游戏时长统计功能
     }
 
 }

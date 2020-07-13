@@ -27,7 +27,7 @@ import kotlin.math.max
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-class ABTest(private val context: Context) {
+class ABTest private constructor(private val context: Context) {
 
     companion object{
         private const val KEY_VERSION_CODE = "ab_test_version_code"
@@ -48,32 +48,43 @@ class ABTest(private val context: Context) {
 
         private lateinit var timeTackHelper: TimeTackHelper
 
+        private lateinit var abTest: ABTest
+
         @JvmStatic
         fun init(context: Context,isNew:Boolean):ABTest{
-            val tools = Tools(context)
-            nowVersionCode = getNowVersionCode(context)
-            firstVersionCode = tools.getSharedPreferencesValue(KEY_VERSION_CODE,-1)?:-1
-            if(firstVersionCode==-1){
-                firstVersionCode = if(isNew){
-                    nowVersionCode
-                }else{
-                    max(1,nowVersionCode-1)
+            if(!::abTest.isInitialized){
+                abTest = ABTest(context)
+                val tools = Tools(context)
+                nowVersionCode = getNowVersionCode(context)
+                firstVersionCode = tools.getSharedPreferencesValue(KEY_VERSION_CODE,-1)?:-1
+                if(firstVersionCode==-1){
+                    firstVersionCode = if(isNew){
+                        nowVersionCode
+                    }else{
+                        max(1,nowVersionCode-1)
+                    }
+                    tools.setSharedPreferencesValue(KEY_VERSION_CODE, firstVersionCode)
                 }
-                tools.setSharedPreferencesValue(KEY_VERSION_CODE, firstVersionCode)
-            }
-            val abHistoryJSON = tools.getSharedPreferencesValue(KEY_AB_HISTORY, "")?:""
-            abHistoryMap = try {
-                 if(abHistoryJSON.isEmpty()){
+                val abHistoryJSON = tools.getSharedPreferencesValue(KEY_AB_HISTORY, "")?:""
+                abHistoryMap = try {
+                    if(abHistoryJSON.isEmpty()){
+                        mutableMapOf()
+                    }else{
+                        Gson().fromJson(abHistoryJSON, object : TypeToken<MutableMap<String, Int>>() {}.type)
+                    }
+                }catch (e:Exception){
+                    e.printStackTrace()
                     mutableMapOf()
-                }else{
-                    Gson().fromJson(abHistoryJSON, object : TypeToken<MutableMap<String, Int>>() {}.type)
                 }
-            }catch (e:Exception){
-                e.printStackTrace()
-                mutableMapOf()
             }
-            return ABTest(context)
+            return abTest
         }
+
+        @JvmStatic
+        fun getInstance():ABTest{
+            return abTest
+        }
+
 
         @JvmStatic
         fun isNewUser(versionCode:Int):Boolean{
@@ -219,7 +230,6 @@ class ABTest(private val context: Context) {
                                     val data = getValue(context,abConfig.name)
                                     if(data!=null){
                                         mutableMap[it+"_"+abConfig.name+"_"+data] = value
-                                        mutableMap[it+"_"+abConfig.name+"_"+"all"] = value
                                     }
                                 }
                             }
@@ -243,7 +253,7 @@ class ABTest(private val context: Context) {
             if(canABTest(config)){
                 if(uniqueUser==null||!uniqueUser.contains(config.name)){
                     uniqueUser+="${config.name},"
-                    eventBase(context,config.name, mutableMapOf("base_$value" to "user"))
+                    eventBase(context,config.name, mutableMapOf("base_$value" to "userUnique"))
                     tools.setSharedPreferencesValue(KEY_UNIQUE_USER,uniqueUser)
                 }
                 eventBase(context,config.name, mutableMapOf("base_$value" to "startApp"))
@@ -260,6 +270,8 @@ class ABTest(private val context: Context) {
                 val nowDay = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
                 val nowDayKey = String.format(Locale.getDefault(),"%s:%02d",config.name,nowDay)
                 if(dayEvent.isNullOrEmpty()||!dayEvent.contains(nowDayKey)){
+
+                    eventBase(context,config.name, mutableMapOf("base_$value" to "userActive"))
 
                     eventBase(context,config.name, mutableMapOf("day_$value" to "$dayNum"))
 

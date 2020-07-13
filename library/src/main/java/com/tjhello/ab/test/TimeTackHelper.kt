@@ -51,10 +51,12 @@ class TimeTackHelper(private val context: Context) {
             val info = timeTackInfoList[i]
             if(info.canUpload()){
                 //可以提交并且删除
-                if(info.type==TimeTackInfo.TYPE_ONCE){
-                    listener?.onEventOnce(info.useTime)
-                }else{
-                    listener?.onEventDay(info.useTime)
+                if(info.useTime>0){
+                    if(info.type==TimeTackInfo.TYPE_ONCE){
+                        listener?.onEventOnce(info.useTime)
+                    }else{
+                        listener?.onEventDay(info.useTime)
+                    }
                 }
                 timeTackInfoList.removeAt(i)
             }else{
