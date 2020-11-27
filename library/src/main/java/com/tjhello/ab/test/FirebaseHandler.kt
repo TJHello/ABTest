@@ -37,4 +37,16 @@ object FirebaseHandler {
         FirebaseAnalytics.getInstance(context).logEvent(eventId,bundle)
     }
 
+    fun eventNum(context: Context,eventId:String,map: MutableMap<String,Int>){
+        val bundle = Bundle()
+        val keySet = map.keys
+        for(key in keySet){
+            val value = map[key]
+            if(value!=null){
+                bundle.putInt(key,value)
+            }
+        }
+        FirebaseAnalytics.getInstance(context).logEvent(eventId,bundle)
+    }
+
 }

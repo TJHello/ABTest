@@ -1,15 +1,16 @@
 package com.tjhello.app.abtest
 
-import android.app.Application
-import com.tjhello.ab.test.ABConfig
+import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
 import com.tjhello.ab.test.ABTest
+import kotlinx.android.synthetic.main.game_activity_layout.*
 
 /**
  * 作者:天镜baobao
- * 时间:2020/3/20  16:01
+ * 时间:2020/7/21  13:59
  * 说明:允许使用，但请遵循Apache License 2.0
  * 使用：
- * Copyright 2020/3/20 天镜baobao
+ * Copyright 2020/7/21 天镜baobao
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,22 +24,24 @@ import com.tjhello.ab.test.ABTest
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-class TJApplication : Application() {
+class GameActivity: AppActivity() {
 
-    override fun onCreate() {
-        super.onCreate()
-        ABTest.isDebug = true
-        ABTest.isOpenLogcat = true
-        ABTest.addCountryToDay = true
-        ABTest.init(this, true)
-        ABTest.getInstance()
-            .addTest(this,ABConfig().apply {//添加一项ABTest
-            this.dataArray = arrayOf("0","1")
-            this.firstVersionCode = 1
-            this.isOnlyNew = true
-            this.name = "NewUI2"
-            this.nowVersionCode = 2 })
-            .startTimeTack()//开启游戏时长统计功能
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.game_activity_layout)
+        btGameBegin.setOnClickListener {
+            ABTest.startGame("test_1")
+        }
+
+        btGamePause.setOnClickListener {
+            ABTest.stopGame("test_1",false)
+        }
+
+        btGameComplete.setOnClickListener {
+            ABTest.stopGame("test_1",true)
+        }
     }
+
+
 
 }

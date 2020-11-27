@@ -1,5 +1,6 @@
 package com.tjhello.ab.test
 
+import androidx.annotation.Keep
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -22,6 +23,7 @@ import java.util.*
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@Keep
 class TimeTackInfo(val type: Int) {
 
     companion object {

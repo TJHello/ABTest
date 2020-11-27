@@ -51,9 +51,11 @@ class TJTimerTask(private val runnable: Runnable) {
     }
 
     fun stop(){
-        isCancel = true
-        timer.cancel()
-        timerTask.cancel()
+        if(!isCancel){
+            isCancel = true
+            timer.cancel()
+            timerTask.cancel()
+        }
     }
 
     private inner class MyTimerTask : TimerTask() {

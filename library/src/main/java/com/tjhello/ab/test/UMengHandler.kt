@@ -17,6 +17,12 @@ object UMengHandler {
         MobclickAgent.onEvent(context,eventId,map)
     }
 
+
+    @JvmStatic
+    fun eventObject(context: Context,eventId:String,map:MutableMap<String,out Any>){
+        MobclickAgent.onEventObject(context,eventId,map)
+    }
+
     fun onExit(context: Context){
         MobclickAgent.onKillProcess(context)
     }

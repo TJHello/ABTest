@@ -2,6 +2,8 @@ package com.tjhello.ab.test
 
 import android.content.Context
 import android.content.SharedPreferences.Editor
+import java.util.*
+import java.util.concurrent.Executors
 
 /**
  * 创建者：TJbaobao
@@ -11,6 +13,11 @@ import android.content.SharedPreferences.Editor
  **/
 class Tools(context: Context) {
 
+    companion object{
+        private val threadPool = Executors.newFixedThreadPool(3)
+    }
+
+    private val sharedMap = mutableMapOf<String,Objects>()
     private val pref = context.getSharedPreferences("ab-test", 0)
 
     fun <T>getSharedPreferencesValue(key: String?, defValue: T?): T? {
@@ -28,20 +35,24 @@ class Tools(context: Context) {
         return null
     }
 
+
     fun setSharedPreferencesValue(key: String?, value: Any?) {
-        val editor: Editor = pref.edit()
-        if (value == null || value is String) {
-            editor.putString(key, value as String?)
-        } else if (value is Int) {
-            editor.putInt(key, (value as Int?)!!)
-        } else if (value is Float) {
-            editor.putFloat(key, (value as Float?)!!)
-        } else if (value is Long) {
-            editor.putLong(key, (value as Long?)!!)
-        } else if (value is Boolean) {
-            editor.putBoolean(key, (value as Boolean?)!!)
+        threadPool.submit {
+            ABTest.log("setSharedPreferencesValue:$key")
+            val editor: Editor = pref.edit()
+            if (value == null || value is String) {
+                editor.putString(key, value as String?)
+            } else if (value is Int) {
+                editor.putInt(key, (value as Int?)!!)
+            } else if (value is Float) {
+                editor.putFloat(key, (value as Float?)!!)
+            } else if (value is Long) {
+                editor.putLong(key, (value as Long?)!!)
+            } else if (value is Boolean) {
+                editor.putBoolean(key, (value as Boolean?)!!)
+            }
+            editor.commit()
         }
-        editor.apply()
     }
 
 }

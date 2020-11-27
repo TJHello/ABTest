@@ -94,7 +94,7 @@ class TimeTackHelper(private val context: Context) {
                 info.onResume()
             }
         }
-        timerTask.start(0,TIME_PERIOD)
+        timerTask.start(TIME_PERIOD,TIME_PERIOD)
     }
 
     private fun timeRefresh(){
