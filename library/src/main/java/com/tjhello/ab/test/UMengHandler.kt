@@ -14,13 +14,21 @@ object UMengHandler {
 
     @JvmStatic
     fun event(context: Context,eventId:String,map:MutableMap<String,String>){
-        MobclickAgent.onEvent(context,eventId,map)
+        object : Thread(){
+            override fun run() {
+                MobclickAgent.onEvent(context,eventId,map)
+            }
+        }.start()
     }
 
 
     @JvmStatic
     fun eventObject(context: Context,eventId:String,map:MutableMap<String,out Any>){
-        MobclickAgent.onEventObject(context,eventId,map)
+        object : Thread(){
+            override fun run() {
+                MobclickAgent.onEventObject(context,eventId,map)
+            }
+        }.start()
     }
 
     fun onExit(context: Context){

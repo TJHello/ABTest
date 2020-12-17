@@ -15,5 +15,7 @@ class ABConfig {
     var dataArray : Array<String> = arrayOf()
     var endDate : String ?= null
     var listenEventArray = mutableListOf<String>()
+    var parentName : String ?= ""
+    var parentValue : String ?= ""
 
 }

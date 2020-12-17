@@ -39,6 +39,7 @@ class ABTest private constructor(private val context: Context) {
         var isDebug = false
         var isOpenLogcat = true
         var useNewUserTag = false//使用新用户标签
+        var isFirebaseAbMode = false
 
         private var fixedValue = mutableMapOf<String,String>()
 
@@ -100,33 +101,52 @@ class ABTest private constructor(private val context: Context) {
         }
 
         @JvmStatic
+        fun getFirstVersion():Int{
+            return firstVersionCode
+        }
+
+        @JvmStatic
         fun onPause(){
-            timeTackHelper.onPause()
-            gameTimeHelper.onPause()
+            if(::timeTackHelper.isInitialized){
+                timeTackHelper.onPause()
+            }
+            if(::gameTimeHelper.isInitialized){
+                gameTimeHelper.onPause()
+            }
         }
 
         @JvmStatic
         fun onResume(){
-            timeTackHelper.onResume()
-            gameTimeHelper.onResume()
+            if(::timeTackHelper.isInitialized){
+                timeTackHelper.onResume()
+            }
+            if(::gameTimeHelper.isInitialized){
+                gameTimeHelper.onResume()
+            }
         }
 
         @JvmStatic
         fun onExit(context: Context){
             if(hasUmeng){
-                timeTackHelper.onPause()
+                if(::timeTackHelper.isInitialized){
+                    timeTackHelper.onPause()
+                }
                 UMengHandler.onExit(context)
             }
         }
 
         @JvmStatic
         fun startGame(name: String){
-            gameTimeHelper.startGame(name)
+            if(::gameTimeHelper.isInitialized){
+                gameTimeHelper.startGame(name)
+            }
         }
 
         @JvmStatic
         fun stopGame(name: String,isComplete:Boolean){
-            gameTimeHelper.stopGame(name,isComplete)
+            if(::gameTimeHelper.isInitialized){
+                gameTimeHelper.stopGame(name,isComplete)
+            }
         }
 
 
@@ -137,6 +157,14 @@ class ABTest private constructor(private val context: Context) {
         }
 
         private fun canABTest(abConfig: ABConfig):Boolean{
+            abConfig.parentName?.let { parentTest->
+                if(parentTest.isNotEmpty()){
+                    val value = getValue(parentTest)
+                    if(value==null || (!abConfig.parentValue.isNullOrEmpty() && abConfig.parentValue!=value)){
+                        return false
+                    }
+                }
+            }
             val isPre = firstVersionCode>=abConfig.firstVersionCode//接入ABTest之后的用户
             val isNow = firstVersionCode>=abConfig.nowVersionCode//当前测试新增用户
             return if(abConfig.isOnlyNew) isPre&&isNow else isPre
@@ -173,7 +201,7 @@ class ABTest private constructor(private val context: Context) {
             }
         }
 
-        private fun getValue(context : Context,name: String):String?{
+        private fun getValue(name: String):String?{
             synchronized(abConfigList){
                 val abConfig = abConfigList.find {
                     return@find it.name == name
@@ -237,7 +265,7 @@ class ABTest private constructor(private val context: Context) {
             override fun onEventOnce(time: Long) {
                 synchronized(abConfigList){
                     for (config in abConfigList) {
-                        val value = getValue(context,config.name)
+                        val value = getValue(config.name)
                         if(value!=null){
                             if(canABTest(config)){
                                 eventBase(context,config.name, mutableMapOf("time_once_$value" to "${time/1000}"))
@@ -249,7 +277,7 @@ class ABTest private constructor(private val context: Context) {
             override fun onEventDay(time: Long) {
                 synchronized(abConfigList){
                     for (config in abConfigList) {
-                        val value = getValue(context,config.name)
+                        val value = getValue(config.name)
                         if(value!=null){
                             if(canABTest(config)){
                                 eventBase(context,config.name, mutableMapOf("time_day_$value" to "${time/1000/60}"))
@@ -266,17 +294,35 @@ class ABTest private constructor(private val context: Context) {
                 keySet.forEach {
                     val value = mutableMap[it]
                     if(value!=null){
-                        abConfigList.forEach {abConfig->
-                            if(useNewUserTag){
-                                if(isNewUser(getNowVersionCode(context))){
-                                    mutableMap[it+"_"+"newUser"] = value
+                        if(isFirebaseAbMode){
+                            fixedValue.keys.forEach {name->
+                                val data = getValue(name)
+                                if(data!=null){
+                                    mutableMap[it+"_"+name+"_"+data] = value
                                 }
                             }
-                            if(abConfig.listenEventArray.isNullOrEmpty()||abConfig.listenEventArray.contains(eventId)){
-                                if(canABTest(abConfig)){
-                                    val data = getValue(context,abConfig.name)
-                                    if(data!=null){
-                                        mutableMap[it+"_"+abConfig.name+"_"+data] = value
+                        }else{
+                            abConfigList.forEach {abConfig->
+                                if(useNewUserTag){
+                                    if(isNewUser(getNowVersionCode(context))){
+                                        mutableMap[it+"_"+"newUser"] = value
+                                    }
+                                }
+                                if(abConfig.listenEventArray.isNullOrEmpty()||abConfig.listenEventArray.contains(eventId)){
+                                    if(canABTest(abConfig)){
+                                        val data = getValue(abConfig.name)
+                                        if(data!=null){
+                                            if(abConfig.parentName.isNullOrEmpty()){
+                                                mutableMap[it+"_"+abConfig.name+"_"+data] = value
+                                            }else{
+                                                abConfig.parentName?.let { parentName->
+                                                    val parentValue = getValue(parentName)
+                                                    if(parentValue!=null){
+                                                        mutableMap[it+"_"+abConfig.parentName+"_"+parentValue+"_"+abConfig.name+"_"+data] = value
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -296,7 +342,7 @@ class ABTest private constructor(private val context: Context) {
                         abConfigList.forEach {abConfig->
                             if(abConfig.listenEventArray.isNullOrEmpty()||abConfig.listenEventArray.contains(eventId)){
                                 if(canABTest(abConfig)){
-                                    val data = getValue(context,abConfig.name)
+                                    val data = getValue(abConfig.name)
                                     if(data!=null){
                                         mutableMap[it+"_"+abConfig.name+"_"+data] = value
                                     }
@@ -322,7 +368,7 @@ class ABTest private constructor(private val context: Context) {
         var uniqueUser = tools.getSharedPreferencesValue(KEY_UNIQUE_USER,"")
         val dayRetain = tools.getSharedPreferencesValue(KEY_DAY_RETAIN,"")
         var dayEvent = tools.getSharedPreferencesValue(KEY_DAY_EVENT,"")
-        val value = getValue(context,config.name)
+        val value = getValue(config.name)
         if(value!=null){
             if(canABTest(config)){
                 if(uniqueUser==null||!uniqueUser.contains(config.name)){
@@ -377,11 +423,11 @@ class ABTest private constructor(private val context: Context) {
     }
 
     fun getStringValue(name:String,def:String?) : String?{
-        return getValue(context,name)?:def
+        return getValue(name)?:def
     }
 
     fun getIntValue(name:String,def:Int):Int{
-        val value = getValue(context,name)
+        val value = getValue(name)
         if(value.isNullOrEmpty()){
             return def
         }else{
@@ -395,7 +441,7 @@ class ABTest private constructor(private val context: Context) {
     }
 
     fun getFloatValue(name:String,def:Float):Float{
-        val value = getValue(context,name)
+        val value = getValue(name)
         if(value.isNullOrEmpty()){
             return def
         }else{
