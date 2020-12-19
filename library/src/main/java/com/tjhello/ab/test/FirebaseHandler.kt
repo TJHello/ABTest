@@ -49,4 +49,8 @@ object FirebaseHandler {
         FirebaseAnalytics.getInstance(context).logEvent(eventId,bundle)
     }
 
+
+    fun setUserProperty(context: Context,tag:String,att:String){
+        FirebaseAnalytics.getInstance(context).setUserProperty(tag,att)
+    }
 }

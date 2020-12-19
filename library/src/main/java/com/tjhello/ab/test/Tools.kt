@@ -15,6 +15,17 @@ class Tools(context: Context) {
 
     companion object{
         private val threadPool = Executors.newFixedThreadPool(3)
+
+        @JvmStatic
+        fun containsClass(name:String):Boolean{
+            return try {
+                Class.forName(name)
+                true
+            }catch (e:ClassNotFoundException){
+                ABTestOld.log("Not imported:$name")
+                false
+            }
+        }
     }
 
     private val sharedMap = mutableMapOf<String,Objects>()
@@ -38,7 +49,7 @@ class Tools(context: Context) {
 
     fun setSharedPreferencesValue(key: String?, value: Any?) {
         threadPool.submit {
-            ABTest.log("setSharedPreferencesValue:$key")
+            ABTestOld.log("setSharedPreferencesValue:$key")
             val editor: Editor = pref.edit()
             if (value == null || value is String) {
                 editor.putString(key, value as String?)
@@ -54,5 +65,7 @@ class Tools(context: Context) {
             editor.commit()
         }
     }
+
+
 
 }

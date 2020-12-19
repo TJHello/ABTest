@@ -1,7 +1,7 @@
 package com.tjhello.app.abtest
 
 import android.app.Application
-import com.tjhello.ab.test.ABConfig
+import com.tjhello.ab.test.config.ABConfig
 import com.tjhello.ab.test.ABTest
 
 /**
@@ -29,16 +29,16 @@ class TJApplication : Application() {
         super.onCreate()
         ABTest.isDebug = true
         ABTest.isOpenLogcat = true
-        ABTest.addCountryToDay = true
         ABTest.init(this, true)
-        ABTest.getInstance()
-            .addTest(this,ABConfig().apply {//添加一项ABTest
-            this.dataArray = arrayOf("0","1")
-            this.firstVersionCode = 1
-            this.isOnlyNew = true
-            this.name = "NewUI2"
-            this.nowVersionCode = 2 })
-            .startTimeTack()//开启游戏时长统计功能
+            .addTest(ABConfig().apply {
+                this.name = "ABTestDemo"
+                this.abVer = 10001
+                this.data = mutableListOf("1","2")
+                this.listenEvent = mutableListOf("ABTestDemoEvent")
+                this.mergeEvent = true
+                this.mergeTag = true
+                this.onlyNew = true
+            })
     }
 
 }

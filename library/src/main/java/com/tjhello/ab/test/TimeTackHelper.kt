@@ -79,14 +79,14 @@ class TimeTackHelper(private val context: Context) {
     }
 
     fun onPause(){
-        ABTest.log("onPause")
+        ABTestOld.log("onPause")
         timeRefresh()
         timerTask.stop()
 
     }
 
     fun onResume(){
-        ABTest.log("onResume")
+        ABTestOld.log("onResume")
         synchronized(timeTackInfoList){
             val size = timeTackInfoList.size
             for(i in size-1 downTo 0) {

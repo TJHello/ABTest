@@ -1,4 +1,4 @@
-package com.tjhello.ab.test
+package com.tjhello.ab.test.config
 
 /**
  * 创建者：TJbaobao
@@ -6,7 +6,7 @@ package com.tjhello.ab.test
  * 使用:
  * 说明:
  **/
-class ABConfig {
+class ABConfigOld {
 
     var isOnlyNew = true //是否是仅限于新用户测试
     var firstVersionCode = 0//首次接入ABTest的应用版本号

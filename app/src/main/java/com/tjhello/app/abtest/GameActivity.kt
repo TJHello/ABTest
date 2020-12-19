@@ -1,8 +1,6 @@
 package com.tjhello.app.abtest
 
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
-import com.tjhello.ab.test.ABTest
 import kotlinx.android.synthetic.main.game_activity_layout.*
 
 /**
@@ -30,15 +28,12 @@ class GameActivity: AppActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.game_activity_layout)
         btGameBegin.setOnClickListener {
-            ABTest.startGame("test_1")
         }
 
         btGamePause.setOnClickListener {
-            ABTest.stopGame("test_1",false)
         }
 
         btGameComplete.setOnClickListener {
-            ABTest.stopGame("test_1",true)
         }
     }
 

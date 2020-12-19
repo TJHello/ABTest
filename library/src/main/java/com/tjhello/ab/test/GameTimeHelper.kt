@@ -4,7 +4,6 @@ import android.content.Context
 import android.os.SystemClock
 import androidx.annotation.Keep
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 
 /**
  * 作者:天镜baobao
@@ -59,12 +58,12 @@ class GameTimeHelper(private val context: Context,private val listener:Listener)
             }
             saveInfo(info)
             tackInfoNow = info
-            ABTest.log("startGame:${info.uT}")
+            ABTestOld.log("startGame:${info.uT}")
             startTimer()
         }else{
             if(!tackInfo.isCom){
                 tackInfoNow = tackInfo
-                ABTest.log("startGame:${tackInfo.uT}")
+                ABTestOld.log("startGame:${tackInfo.uT}")
                 startTimer()
             }
         }
@@ -74,7 +73,7 @@ class GameTimeHelper(private val context: Context,private val listener:Listener)
         val tackInfo = findTackInfo(name)
         if(tackInfo!=null&&!tackInfo.isCom){
             refreshTime(tackInfo)
-            ABTest.log("stopGame:${tackInfo.uT},$isComplete")
+            ABTestOld.log("stopGame:${tackInfo.uT},$isComplete")
             if(isComplete){
                 tackInfo.isCom = true
                 saveInfo(tackInfo)

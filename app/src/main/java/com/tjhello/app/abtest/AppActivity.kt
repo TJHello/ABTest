@@ -2,7 +2,6 @@ package com.tjhello.app.abtest
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import com.tjhello.ab.test.ABTest
 
 /**
  * 作者:天镜baobao
@@ -25,7 +24,6 @@ import com.tjhello.ab.test.ABTest
  */
 open class AppActivity : AppCompatActivity() {
 
-    protected val abTest = ABTest.getInstance()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,12 +32,10 @@ open class AppActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        ABTest.onPause()
     }
 
     override fun onResume() {
         super.onResume()
-        ABTest.onResume()
     }
 
 }

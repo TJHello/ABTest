@@ -85,7 +85,7 @@ class TimeTackInfo(val type: Int) {
         this.endTime = System.currentTimeMillis()
         this.useTime += this.endTime-this.beginTime
         this.beginTime = this.endTime
-        ABTest.log("[update]${if(type== TYPE_ONCE) "once" else "day"},useTime:${useTime/1000}s")
+        ABTestOld.log("[update]${if(type== TYPE_ONCE) "once" else "day"},useTime:${useTime/1000}s")
     }
 
     private fun formatDate(time:Long):String{
