@@ -52,7 +52,7 @@ class ABTest(private val context: Context) {
         fun init(context: Context,isFirstStart:Boolean): ABTest {
             val abTest = getInstance(context)
             val tools = Tools(context)
-            initOLConfig()
+
             nowVersionCode = getNowVersionCode(context)
             firstVersionCode = tools.getSharedPreferencesValue(KEY_VERSION_CODE,-1)?:-1
             if(firstVersionCode ==-1){
@@ -74,12 +74,20 @@ class ABTest(private val context: Context) {
                 e.printStackTrace()
                 mutableMapOf()
             }
+            if(hasFirebase){
+                FirebaseHandler.setUserProperty(context,"firstVersion","$firstVersionCode")
+            }
             return abTest
         }
 
         @JvmStatic
-        fun getInstance(context: Context): ABTest {
-            if(!Companion::abTest.isInitialized){
+        fun addTestByRemoteConfig(){
+            initOLConfig()
+        }
+
+        @JvmStatic
+        fun getInstance(context: Context?): ABTest {
+            if(!Companion::abTest.isInitialized&&context!=null){
                 abTest = ABTest(context)
             }
             return abTest
@@ -137,6 +145,18 @@ class ABTest(private val context: Context) {
                 }
                 if(hasFirebase){
                     FirebaseHandler.event(context,eventId,map)
+                }
+            }
+            log("[event]:$eventId=>\n"+Gson().toJson(map))
+        }
+
+        private fun eventBaseInt(context: Context,eventId: String,map: MutableMap<String,Int>){
+            if(!isDebug){
+                if(hasUmeng){
+                    UMengHandler.eventObject(context,eventId,map)
+                }
+                if(hasFirebase){
+                    FirebaseHandler.eventNum(context,eventId,map)
                 }
             }
             log("[event]:$eventId=>\n"+Gson().toJson(map))
@@ -270,6 +290,16 @@ class ABTest(private val context: Context) {
         eventBase(context,eventId,map)
     }
 
+    fun event(eventId: String,data:Int){
+        val map = createMapInt(eventId,mutableMapOf("data" to data))
+        eventBaseInt(context,eventId,map)
+    }
+
+    fun eventInt(eventId: String,data:MutableMap<String,Int>){
+        val map = createMapInt(eventId,data)
+        eventBaseInt(context,eventId,map)
+    }
+
     private fun canTest(abConfig: ABConfig):Boolean{
         abConfig.parentName?.let { parentTest->
             if(parentTest.isNotEmpty()){
@@ -361,6 +391,46 @@ class ABTest(private val context: Context) {
             return mutableMap
         }
     }
+
+    private fun createMapInt(eventId: String,mutableMap: MutableMap<String,Int>):MutableMap<String,Int>{
+        synchronized(olConfig) {
+            val keySet = mutableMap.keys.toHashSet()
+            keySet.forEach{parameter->
+                val value = mutableMap[parameter]
+                if(value!=null){
+                    if(isFirebaseAbMode){
+                        olConfig.allFixedName().forEach { name->
+                            val fixed = olConfig.getFixedValue(name)
+                            if(fixed!=null){
+                                mutableMap[parameter+"_"+name+"_"+fixed.value] = value
+                            }
+                        }
+                    }else{
+                        olConfig.allABConfig().forEach { abConfig->
+                            if(abConfig.listenEvent.isNullOrEmpty()
+                                    ||abConfig.listenEvent.contains(eventId)
+                                    ||eventId==abConfig.name)
+                                if(canTest(abConfig)){
+                                    val data = getValue(abConfig.name)
+                                    if(data!=null&&data.position>=0){
+                                        val plan = getPlan(data.position,abConfig.ver,abConfig.parentName)
+                                        if(abConfig.mergeEvent){
+                                            val  baseMutableMap = mutableMapOf<String,Int>()
+                                            baseMutableMap[parameter+"_"+plan] = value
+                                            eventBaseInt(context,abConfig.name,baseMutableMap)
+                                        }else{
+                                            mutableMap[parameter+"_"+plan] = value
+                                        }
+                                    }
+                                }
+                        }
+                    }
+                }
+            }
+            return mutableMap
+        }
+    }
+
 
     private val planArray = arrayOf("A","B","C","D")
     private fun getPlan(position: Int,ver:Int,parent:String?):String{

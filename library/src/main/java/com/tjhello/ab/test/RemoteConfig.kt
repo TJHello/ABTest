@@ -40,7 +40,7 @@ object RemoteConfig {
     }
 
     @JvmStatic
-    fun getInt(key:String):Boolean{
+    fun getBoolean(key:String):Boolean{
         return remoteConfig.getBoolean(key)
     }
 
@@ -86,6 +86,7 @@ object RemoteConfig {
 
     fun isOk():Boolean{
         return Tools.containsClass("com.google.firebase.remoteconfig.FirebaseRemoteConfig")
+                && ::remoteConfig.isInitialized
     }
 
 }

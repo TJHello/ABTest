@@ -11,10 +11,10 @@ import java.util.concurrent.Executors
  * 使用:
  * 说明:
  **/
-class Tools(context: Context) {
+internal class Tools(context: Context) {
 
     companion object{
-        private val threadPool = Executors.newFixedThreadPool(3)
+        private val threadPool = Executors.newFixedThreadPool(1)
 
         @JvmStatic
         fun containsClass(name:String):Boolean{
@@ -28,7 +28,6 @@ class Tools(context: Context) {
         }
     }
 
-    private val sharedMap = mutableMapOf<String,Objects>()
     private val pref = context.getSharedPreferences("ab-test", 0)
 
     fun <T>getSharedPreferencesValue(key: String?, defValue: T?): T? {
@@ -49,7 +48,7 @@ class Tools(context: Context) {
 
     fun setSharedPreferencesValue(key: String?, value: Any?) {
         threadPool.submit {
-            ABTestOld.log("setSharedPreferencesValue:$key")
+            ABTest.log("setSharedPreferencesValue:$key")
             val editor: Editor = pref.edit()
             if (value == null || value is String) {
                 editor.putString(key, value as String?)
