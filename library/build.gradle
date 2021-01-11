@@ -61,7 +61,7 @@ dependencies {
 }
 
 
-ext.ver = '1.0.8'
+ext.ver = '1.0.9'
 ext.GROUP_ID = 'com.TJHello'
 ext.POM_ARTIFACT_ID = 'ABTest'
 

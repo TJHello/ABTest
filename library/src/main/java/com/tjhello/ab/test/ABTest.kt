@@ -177,7 +177,7 @@ class ABTest(private val context: Context) {
         val dayRetain = tools.getSharedPreferencesValue(KEY_DAY_RETAIN,"")
         var dayEvent = tools.getSharedPreferencesValue(KEY_DAY_EVENT,"")
 
-        val value = getValue(config.name)
+        val value = getValue(config.name,null)
         if(value!=null&&value.position>=0){
             val plan = getPlan(value.position,config.ver,config.parentName)
             if(uniqueUser==null||!uniqueUser.contains(config.name)){
@@ -225,7 +225,7 @@ class ABTest(private val context: Context) {
     }
 
     fun getString(name:String,def:String?):String?{
-        val value = getValue(name)
+        val value = getValue(name,def)
         if(value!=null){
             return value.value
         }
@@ -303,7 +303,7 @@ class ABTest(private val context: Context) {
     private fun canTest(abConfig: ABConfig):Boolean{
         abConfig.parentName?.let { parentTest->
             if(parentTest.isNotEmpty()){
-                val value = getValue(parentTest)
+                val value = getValue(parentTest,null)
                 if(value==null || (!abConfig.parentValue.isNullOrEmpty() && abConfig.parentValue!=value.value)){
                     return false
                 }
@@ -314,11 +314,12 @@ class ABTest(private val context: Context) {
                 return false
             }
         }
+        val value = getValue(abConfig.name,null)
         val isNow = firstVersionCode >=abConfig.abVer//当前测试新增用户
-        return if(abConfig.onlyNew) isNow else true
+        return value!=null&&value.position>=0 && if(abConfig.onlyNew) isNow else true
     }
 
-    private fun getValue(name:String): ABValue?{
+    private fun getValue(name:String,def:String?): ABValue?{
         synchronized(olConfig){
             val fixedValue = getFixedValue(name)
             if(fixedValue==null){
@@ -334,6 +335,14 @@ class ABTest(private val context: Context) {
                         abHistoryMap[name] = abValue
                         tools.setSharedPreferencesValue(KEY_AB_HISTORY_V2,Gson().toJson(abHistoryMap))
                         return abValue
+                    }else{
+                        //没有获取到AB测试的时候，第一个获取的非空值，将被设为固定值
+                        if(def!=null){
+                            val value = ABValue(def)
+                            abHistoryMap[name] = value
+                            tools.setSharedPreferencesValue(KEY_AB_HISTORY_V2,Gson().toJson(abHistoryMap))
+                            return value
+                        }
                     }
                 }else{
                     return adHistory
@@ -364,7 +373,7 @@ class ABTest(private val context: Context) {
                                 ||abConfig.listenEvent.contains(eventId)
                                 ||eventId==abConfig.name)
                             if(canTest(abConfig)){
-                                val data = getValue(abConfig.name)
+                                val data = getValue(abConfig.name,null)
                                 if(data!=null&&data.position>=0){
                                     val plan = getPlan(data.position,abConfig.ver,abConfig.parentName)
                                     if(abConfig.mergeEvent){
@@ -411,7 +420,7 @@ class ABTest(private val context: Context) {
                                     ||abConfig.listenEvent.contains(eventId)
                                     ||eventId==abConfig.name)
                                 if(canTest(abConfig)){
-                                    val data = getValue(abConfig.name)
+                                    val data = getValue(abConfig.name,null)
                                     if(data!=null&&data.position>=0){
                                         val plan = getPlan(data.position,abConfig.ver,abConfig.parentName)
                                         if(abConfig.mergeEvent){
