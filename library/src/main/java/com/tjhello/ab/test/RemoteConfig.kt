@@ -14,6 +14,7 @@ object RemoteConfig {
 
     var isDebug = false
     private lateinit var remoteConfig : FirebaseRemoteConfig
+    private var isRemoteSuccess = false
 
     @JvmStatic
     fun init(onComplete:(result:Boolean)->Unit){
@@ -28,6 +29,7 @@ object RemoteConfig {
         setDefaults(defXml){
             remoteConfig.setConfigSettingsAsync(builder.build()).addOnCompleteListener {
                 remoteConfig.fetchAndActivate().addOnCompleteListener {
+                    isRemoteSuccess = it.isSuccessful
                     onComplete(it.isSuccessful)
                 }
             }
@@ -84,6 +86,12 @@ object RemoteConfig {
         }
     }
 
+    @JvmStatic
+    fun isRemote():Boolean{
+        return isRemoteSuccess
+    }
+
+    @JvmStatic
     fun isOk():Boolean{
         return Tools.containsClass("com.google.firebase.remoteconfig.FirebaseRemoteConfig")
                 && ::remoteConfig.isInitialized

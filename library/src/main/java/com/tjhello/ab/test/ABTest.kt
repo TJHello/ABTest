@@ -319,6 +319,14 @@ class ABTest(private val context: Context) {
         return value!=null&&value.position>=0 && if(abConfig.onlyNew) isNow else true
     }
 
+    fun canTest(name:String):Boolean{
+        val config = olConfig.findTest(name)
+        if(config!=null){
+            return canTest(config)
+        }
+        return false
+    }
+
     private fun getValue(name:String,def:String?): ABValue?{
         synchronized(olConfig){
             val fixedValue = getFixedValue(name)
