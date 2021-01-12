@@ -248,7 +248,7 @@ class ABTest(private val context: Context) {
             tools.setSharedPreferencesValue(KEY_DAY_RETAIN, Gson().toJson(mapDayRetain))
 
             if(hasFirebase){
-                FirebaseHandler.setUserProperty(context, "ABTest", plan)
+                FirebaseHandler.setUserProperty(context, "ABTest",config.name+"_"+plan)
             }
 
         }

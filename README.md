@@ -33,7 +33,7 @@ allprojects {
 ```
 dependencies {
     //需要另外接入友盟或者Firebase打点
-    implementation 'com.TJHello:ABTest:1.0.14'
+    implementation 'com.TJHello:ABTest:1.0.15'
 }
 ```
 
