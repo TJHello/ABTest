@@ -27,27 +27,33 @@ allprojects {
 
 ```
 dependencies {
-    //需要接入友盟或者Firebase打点，初始化以及接入需要自行处理。
-    implementation 'com.TJHello:ABTest:0.9.22'
+    //需要另外接入友盟或者Firebase打点
+    implementation 'com.TJHello:ABTest:1.0.13'
 }
 ```
 
 ### Step3 配置Application
+
 
 ```kotlin
 override fun onCreate() {
     super.onCreate()
     val isNew = true//自己判断当前用户是否是新用户，如果一开始就接入了ABTest，可以写成true。
     ABTest.isDebug = true
+    //本地测试
     ABTest.init(this, true)
-    ABTest.getInstance()
-        .addTest(this,ABConfig().apply {//添加一项ABTest
-            this.dataArray = arrayOf("0","1")
-            this.firstVersionCode = 1
-            this.isOnlyNew = true
-            this.name = "NewUI2"
-            this.nowVersionCode = 2 })
-        .startTimeTack()//开启游戏时长统计功能
+    addTest(this,ABConfig().apply {//添加一项ABTest
+            this.name = "ABTestDemo"//测试名称
+            this.ver = 0//AB测试版本，默认0，如果同一个测试不同版本，则修改这个数值
+            this.abVer = 10001//当前测试对应的应用版本号
+            this.data = mutableListOf("1","2")//支持任意多维度的数据
+            this.listenEvent = mutableListOf("ABTestDemoEvent")//需要纳入AB的事件,留空则监听所有事件
+            this.mergeEvent = false//合并事件(测试中)
+            this.mergeTag = true//合并标签eg:data_A=value1,data_B=value2  ->  data = value1_A,data = value2_B
+            this.onlyNew = true//仅将新增用户纳入测试结果
+        })
+    //本地测试
+    ABTest.getInstance()  
 }
 
 ```

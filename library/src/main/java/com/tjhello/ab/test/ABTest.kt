@@ -9,6 +9,8 @@ import com.google.gson.reflect.TypeToken
 import com.tjhello.ab.test.config.ABConfig
 import com.tjhello.ab.test.config.ABValue
 import com.tjhello.ab.test.config.OLConfig
+import java.text.DateFormat
+import java.text.SimpleDateFormat
 import java.util.*
 
 /**
@@ -22,7 +24,8 @@ class ABTest(private val context: Context) {
 
     companion object {
 
-        private const val KEY_VERSION_CODE = "ab_test_version_code"
+        private const val KEY_FIRST_VERSION_CODE = "ab_test_version_code"
+        private const val KEY_FIRST_DATE = "ab_test_first_date"
         private const val KEY_AB_HISTORY_V2 = "ab_test_ab_history_v2"
         private const val KEY_UNIQUE_USER = "ab_test_unique_user"
         private const val KEY_DAY_RETAIN = "ab_test_day_retain"
@@ -41,6 +44,7 @@ class ABTest(private val context: Context) {
         private val olConfig = OLConfig()
 
         private var firstVersionCode = -1
+        private var firstDate = ""
         private var nowVersionCode = -1
         private var hasUmeng = checkUmengSDK()
         private var hasFirebase = checkFirebaseSDK()
@@ -49,19 +53,22 @@ class ABTest(private val context: Context) {
 
 
         @JvmStatic
-        fun init(context: Context,isFirstStart:Boolean): ABTest {
+        fun init(context: Context, isFirstStart: Boolean): ABTest {
             val abTest = getInstance(context)
             val tools = Tools(context)
 
             nowVersionCode = getNowVersionCode(context)
-            firstVersionCode = tools.getSharedPreferencesValue(KEY_VERSION_CODE,-1)?:-1
+            firstVersionCode = tools.getSharedPreferencesValue(KEY_FIRST_VERSION_CODE, -1)?:-1
+            firstDate = tools.getSharedPreferencesValue(KEY_FIRST_DATE, getDate())?: getDate()
+
             if(firstVersionCode ==-1){
                 firstVersionCode = if(isFirstStart){
                     nowVersionCode
                 }else{
                     1
                 }
-                tools.setSharedPreferencesValue(KEY_VERSION_CODE, firstVersionCode)
+                tools.setSharedPreferencesValue(KEY_FIRST_VERSION_CODE, firstVersionCode)
+                tools.setSharedPreferencesValue(KEY_FIRST_DATE,firstDate)
             }
             val abHistoryJSON = tools.getSharedPreferencesValue(KEY_AB_HISTORY_V2, "")?:""
             abHistoryMap = try {
@@ -70,12 +77,12 @@ class ABTest(private val context: Context) {
                 }else{
                     Gson().fromJson(abHistoryJSON, object : TypeToken<MutableMap<String, ABValue>>() {}.type)
                 }
-            }catch (e:Exception){
+            }catch (e: Exception){
                 e.printStackTrace()
                 mutableMapOf()
             }
             if(hasFirebase){
-                FirebaseHandler.setUserProperty(context,"firstVersion","$firstVersionCode")
+                FirebaseHandler.setUserProperty(context, "firstVersion", "$firstVersionCode")
             }
             return abTest
         }
@@ -86,18 +93,18 @@ class ABTest(private val context: Context) {
         }
 
         @JvmStatic
-        fun addTestByJsonConfig(json:String?){
+        fun addTestByJsonConfig(json: String?){
             if(json.isNullOrEmpty()) return
             try {
-                val config = Gson().fromJson<OLConfig>(json,OLConfig::class.java)
+                val config = Gson().fromJson<OLConfig>(json, OLConfig::class.java)
                 initOLConfig(config)
-            }catch (e:Exception){
+            }catch (e: Exception){
                 e.printStackTrace()
             }
         }
 
         @JvmStatic
-        fun addTestByInfoConfig(config:OLConfig?){
+        fun addTestByInfoConfig(config: OLConfig?){
             initOLConfig(config)
         }
 
@@ -110,7 +117,7 @@ class ABTest(private val context: Context) {
         }
 
         @JvmStatic
-        fun isNewUser(versionCode:Int):Boolean{
+        fun isNewUser(versionCode: Int):Boolean{
             return firstVersionCode >=versionCode
         }
 
@@ -135,7 +142,15 @@ class ABTest(private val context: Context) {
             }
         }
 
-        private fun initOLConfig(config:OLConfig?){
+
+        private fun getDate(): String {
+            val dt = Date()
+            val sdf = DateFormat.getInstance() as SimpleDateFormat
+            sdf.applyPattern("yyyy-MM-dd")
+            return sdf.format(dt)
+        }
+
+        private fun initOLConfig(config: OLConfig?){
             if(config!=null){
                 olConfig.copy(config){
                     abTest.addTest(it)
@@ -158,34 +173,34 @@ class ABTest(private val context: Context) {
             return Tools.containsClass("com.google.firebase.analytics.FirebaseAnalytics")
         }
 
-        private fun eventBase(context: Context,eventId: String,map: MutableMap<String,String>){
+        private fun eventBase(context: Context, eventId: String, map: MutableMap<String, String>){
             if(!isDebug){
                 if(hasUmeng){
-                    UMengHandler.event(context,eventId,map)
+                    UMengHandler.event(context, eventId, map)
                 }
                 if(hasFirebase){
-                    FirebaseHandler.event(context,eventId,map)
+                    FirebaseHandler.event(context, eventId, map)
                 }
             }
-            log("[event]:$eventId=>\n"+Gson().toJson(map))
+            log("[event]:$eventId=>\n" + Gson().toJson(map))
         }
 
-        private fun eventBaseInt(context: Context,eventId: String,map: MutableMap<String,Int>){
+        private fun eventBaseInt(context: Context, eventId: String, map: MutableMap<String, Int>){
             if(!isDebug){
                 if(hasUmeng){
-                    UMengHandler.eventObject(context,eventId,map)
+                    UMengHandler.eventObject(context, eventId, map)
                 }
                 if(hasFirebase){
-                    FirebaseHandler.eventNum(context,eventId,map)
+                    FirebaseHandler.eventNum(context, eventId, map)
                 }
             }
-            log("[event]:$eventId=>\n"+Gson().toJson(map))
+            log("[event]:$eventId=>\n" + Gson().toJson(map))
         }
 
         @JvmStatic
-        internal fun log(msg:String){
+        internal fun log(msg: String){
             if(isOpenLogcat){
-                Log.i(TAG,msg)
+                Log.i(TAG, msg)
             }
         }
     }
@@ -193,137 +208,139 @@ class ABTest(private val context: Context) {
     fun addTest(config: ABConfig): ABTest {
         if(olConfig.findTest(config.name)!=null) return this
         olConfig.addTest(config)
-        var uniqueUser = tools.getSharedPreferencesValue(KEY_UNIQUE_USER,"")
-        val dayRetain = tools.getSharedPreferencesValue(KEY_DAY_RETAIN,"")
-        var dayEvent = tools.getSharedPreferencesValue(KEY_DAY_EVENT,"")
+        var uniqueUser = tools.getSharedPreferencesValue(KEY_UNIQUE_USER, "")
+        val dayRetain = tools.getSharedPreferencesValue(KEY_DAY_RETAIN, "")
+        val dayEventKey = KEY_DAY_EVENT+"_"+config.name
+        var dayEvent = tools.getSharedPreferencesValue(dayEventKey, "")
 
-        val value = getValue(config.name,null)
+        val value = getValue(config.name, null)
         if(value!=null&&value.position>=0){
-            val plan = getPlan(value.position,config.ver,config.parentName)
+            val plan = getPlan(value.position, config.ver, config.parentName)
             if(uniqueUser==null||!uniqueUser.contains(config.name)){
                 uniqueUser+="${config.name},"
-                eventBase(context,config.name,mutableMapOf("base" to "独立用户_$plan"))
-                tools.setSharedPreferencesValue(KEY_UNIQUE_USER,uniqueUser)
+                eventBase(context, config.name, mutableMapOf("base" to "独立用户_$plan"))
+                tools.setSharedPreferencesValue(KEY_UNIQUE_USER, uniqueUser)
             }
-            eventBase(context,config.name, mutableMapOf("base" to "启动应用_$plan"))
+            eventBase(context, config.name, mutableMapOf("base" to "启动应用_$plan"))
 
 
             val mapDayRetain = if(dayRetain.isNullOrEmpty()) {
-                mutableMapOf<String,Int>()
+                mutableMapOf<String, Int>()
             } else {
-                Gson().fromJson(dayRetain,object : TypeToken<MutableMap<String,Int>>(){}.type)
+                Gson().fromJson(dayRetain, object : TypeToken<MutableMap<String, Int>>() {}.type)
             }
             val dayNum = if(mapDayRetain.containsKey(config.name)){
                 mapDayRetain[config.name]?:0
             }else{
                 0
             }
-            val nowDay = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
-            val nowDayKey = String.format(Locale.getDefault(),"%s:%02d",config.name,nowDay)
-
+            val nowDayKey = getDate()
             if(dayEvent.isNullOrEmpty()||!dayEvent.contains(nowDayKey)){
-                eventBase(context,config.name, mutableMapOf("base" to "活跃用户_$plan"))
-                eventBase(context,config.name, mutableMapOf("day_$plan" to "$dayNum"))
+                if(dayNum<=7){
+                    eventBase(context, config.name, mutableMapOf("base" to "活跃用户_$plan"))
+                    eventBase(context, config.name, mutableMapOf("day_$plan" to "${firstDate}_$dayNum"))
+                }
             }
             dayEvent+= "$nowDayKey,"
-            tools.setSharedPreferencesValue(KEY_DAY_EVENT,dayEvent)
+            tools.setSharedPreferencesValue(dayEventKey, dayEvent)
 
             mapDayRetain[config.name] = dayNum+1
-            tools.setSharedPreferencesValue(KEY_DAY_RETAIN,Gson().toJson(mapDayRetain))
+            tools.setSharedPreferencesValue(KEY_DAY_RETAIN, Gson().toJson(mapDayRetain))
 
             if(hasFirebase){
-                FirebaseHandler.setUserProperty(context,"ABTest",plan)
+                FirebaseHandler.setUserProperty(context, "ABTest", plan)
             }
 
         }
         return this
     }
 
-    fun fixedValue(name: String,value:String,onlyNew:Boolean=false): ABTest {
-        olConfig.fixedValue(name,value,onlyNew)
+
+    fun fixedValue(name: String, value: String, onlyNew: Boolean = false): ABTest {
+        olConfig.fixedValue(name, value, onlyNew)
         return this
     }
 
-    fun getString(name:String,def:String?):String?{
-        val value = getValue(name,def)
+    fun getString(name: String, def: String?):String?{
+        val value = getValue(name, def)
         if(value!=null){
             return value.value
         }
         return def
     }
 
-    fun getInt(name:String,def:Int):Int{
-        val value = getString(name,"$def")
+    fun getInt(name: String, def: Int):Int{
+        val value = getString(name, "$def")
         if(!value.isNullOrEmpty()){
             try {
                 return value.toInt()
-            }catch (e:Exception){
+            }catch (e: Exception){
                 e.printStackTrace()
             }
         }
         return def
     }
 
-    fun getFloat(name:String,def:Float):Float{
-        val value = getString(name,"$def")
+    fun getFloat(name: String, def: Float):Float{
+        val value = getString(name, "$def")
         if(!value.isNullOrEmpty()){
             try {
                 return value.toFloat()
-            }catch (e:Exception){
+            }catch (e: Exception){
                 e.printStackTrace()
             }
         }
         return def
     }
 
-    fun getLong(name:String,def:Long):Long{
-        val value = getString(name,"$def")
+    fun getLong(name: String, def: Long):Long{
+        val value = getString(name, "$def")
         if(!value.isNullOrEmpty()){
             try {
                 return value.toLong()
-            }catch (e:Exception){
+            }catch (e: Exception){
                 e.printStackTrace()
             }
         }
         return def
     }
 
-    fun <T>getJsonInfo(name:String,aClass:Class<T>):T?{
-        val value = getString(name,null)
+    fun <T>getJsonInfo(name: String, aClass: Class<T>):T?{
+        val value = getString(name, null)
         if(!value.isNullOrEmpty()){
             try {
-                return Gson().fromJson(value,aClass)
-            }catch (e:Exception){
+                return Gson().fromJson(value, aClass)
+            }catch (e: Exception){
                 e.printStackTrace()
             }
         }
         return null
     }
 
-    fun event(eventId: String,data:String){
-        val map = createMap(eventId,mutableMapOf("data" to data))
-        eventBase(context,eventId,map)
+    fun event(eventId: String, data: String){
+        val map = createMap(eventId, mutableMapOf("data" to data))
+        eventBase(context, eventId, map)
     }
 
-    fun event(eventId: String,data:MutableMap<String,String>){
-        val map = createMap(eventId,data)
-        eventBase(context,eventId,map)
+    fun event(eventId: String, data: MutableMap<String, String>){
+        val map = createMap(eventId, data)
+        eventBase(context, eventId, map)
     }
 
-    fun event(eventId: String,data:Int){
-        val map = createMapInt(eventId,mutableMapOf("data" to data))
-        eventBaseInt(context,eventId,map)
+    fun event(eventId: String, data: Int){
+        val map = createMapInt(eventId, mutableMapOf("data" to data))
+        eventBaseInt(context, eventId, map)
     }
 
-    fun eventInt(eventId: String,data:MutableMap<String,Int>){
-        val map = createMapInt(eventId,data)
-        eventBaseInt(context,eventId,map)
+    fun eventInt(eventId: String, data: MutableMap<String, Int>){
+        val map = createMapInt(eventId, data)
+        eventBaseInt(context, eventId, map)
     }
 
     private fun canTest(abConfig: ABConfig):Boolean{
         abConfig.parentName?.let { parentTest->
             if(parentTest.isNotEmpty()){
-                val value = getValue(parentTest,null)
+                val value = getValue(parentTest, null)
                 if(value==null || (!abConfig.parentValue.isNullOrEmpty() && abConfig.parentValue!=value.value)){
                     return false
                 }
@@ -334,12 +351,12 @@ class ABTest(private val context: Context) {
                 return false
             }
         }
-        val value = getValue(abConfig.name,null)
+        val value = getValue(abConfig.name, null)
         val isNow = firstVersionCode >=abConfig.abVer//当前测试新增用户
         return value!=null&&value.position>=0 && if(abConfig.onlyNew) isNow else true
     }
 
-    fun canTest(name:String):Boolean{
+    fun canTest(name: String):Boolean{
         val config = olConfig.findTest(name)
         if(config!=null){
             return canTest(config)
@@ -347,7 +364,7 @@ class ABTest(private val context: Context) {
         return false
     }
 
-    private fun getValue(name:String,def:String?): ABValue?{
+    private fun getValue(name: String, def: String?): ABValue?{
         synchronized(olConfig){
             val fixedValue = getFixedValue(name)
             if(fixedValue==null){
@@ -359,16 +376,16 @@ class ABTest(private val context: Context) {
                     if(abConfig!=null){
                         val testSize = abConfig.data.size
                         val random = (Math.random()*testSize).toInt()
-                        val abValue = ABValue(random,abConfig.data[random])
+                        val abValue = ABValue(random, abConfig.data[random])
                         abHistoryMap[name] = abValue
-                        tools.setSharedPreferencesValue(KEY_AB_HISTORY_V2,Gson().toJson(abHistoryMap))
+                        tools.setSharedPreferencesValue(KEY_AB_HISTORY_V2, Gson().toJson(abHistoryMap))
                         return abValue
                     }else{
                         //没有获取到AB测试的时候，第一个获取的非空值，将被设为固定值
                         if(def!=null){
                             val value = ABValue(def)
                             abHistoryMap[name] = value
-                            tools.setSharedPreferencesValue(KEY_AB_HISTORY_V2,Gson().toJson(abHistoryMap))
+                            tools.setSharedPreferencesValue(KEY_AB_HISTORY_V2, Gson().toJson(abHistoryMap))
                             return value
                         }
                     }
@@ -382,17 +399,17 @@ class ABTest(private val context: Context) {
         return null
     }
 
-    private fun createMap(eventId: String,mutableMap: MutableMap<String,String>):MutableMap<String,String>{
+    private fun createMap(eventId: String, mutableMap: MutableMap<String, String>):MutableMap<String, String>{
         synchronized(olConfig) {
             val keySet = mutableMap.keys.toHashSet()
-            keySet.forEach{parameter->
+            keySet.forEach{ parameter->
                 val value = mutableMap[parameter]
                 if(value!=null){
                     if(isFirebaseAbMode){
                         olConfig.allFixedName().forEach { name->
                             val fixed = olConfig.getFixedValue(name)
                             if(fixed!=null){
-                                mutableMap[parameter+"_"+name+"_"+fixed.value] = value
+                                mutableMap[parameter + "_" + name + "_" + fixed.value] = value
                             }
                         }
                     }else{
@@ -401,22 +418,22 @@ class ABTest(private val context: Context) {
                                 ||abConfig.listenEvent.contains(eventId)
                                 ||eventId==abConfig.name)
                             if(canTest(abConfig)){
-                                val data = getValue(abConfig.name,null)
+                                val data = getValue(abConfig.name, null)
                                 if(data!=null&&data.position>=0){
-                                    val plan = getPlan(data.position,abConfig.ver,abConfig.parentName)
+                                    val plan = getPlan(data.position, abConfig.ver, abConfig.parentName)
                                     if(abConfig.mergeEvent){
-                                        val  baseMutableMap = mutableMapOf<String,String>()
+                                        val  baseMutableMap = mutableMapOf<String, String>()
                                         if(abConfig.mergeTag){
-                                            baseMutableMap[parameter+"_AB"] = value+"_"+plan
+                                            baseMutableMap[parameter + "_AB"] = value+"_"+plan
                                         }else{
-                                            baseMutableMap[parameter+"_"+plan] = value
+                                            baseMutableMap[parameter + "_" + plan] = value
                                         }
-                                        eventBase(context,abConfig.name,baseMutableMap)
+                                        eventBase(context, abConfig.name, baseMutableMap)
                                     }else{
                                         if(abConfig.mergeTag){
-                                            mutableMap[parameter+"_AB"] = value+"_"+plan
+                                            mutableMap[parameter + "_AB"] = value+"_"+plan
                                         }else{
-                                            mutableMap[parameter+"_"+plan] = value
+                                            mutableMap[parameter + "_" + plan] = value
                                         }
                                     }
                                 }
@@ -429,17 +446,17 @@ class ABTest(private val context: Context) {
         }
     }
 
-    private fun createMapInt(eventId: String,mutableMap: MutableMap<String,Int>):MutableMap<String,Int>{
+    private fun createMapInt(eventId: String, mutableMap: MutableMap<String, Int>):MutableMap<String, Int>{
         synchronized(olConfig) {
             val keySet = mutableMap.keys.toHashSet()
-            keySet.forEach{parameter->
+            keySet.forEach{ parameter->
                 val value = mutableMap[parameter]
                 if(value!=null){
                     if(isFirebaseAbMode){
                         olConfig.allFixedName().forEach { name->
                             val fixed = olConfig.getFixedValue(name)
                             if(fixed!=null){
-                                mutableMap[parameter+"_"+name+"_"+fixed.value] = value
+                                mutableMap[parameter + "_" + name + "_" + fixed.value] = value
                             }
                         }
                     }else{
@@ -448,15 +465,15 @@ class ABTest(private val context: Context) {
                                     ||abConfig.listenEvent.contains(eventId)
                                     ||eventId==abConfig.name)
                                 if(canTest(abConfig)){
-                                    val data = getValue(abConfig.name,null)
+                                    val data = getValue(abConfig.name, null)
                                     if(data!=null&&data.position>=0){
-                                        val plan = getPlan(data.position,abConfig.ver,abConfig.parentName)
+                                        val plan = getPlan(data.position, abConfig.ver, abConfig.parentName)
                                         if(abConfig.mergeEvent){
-                                            val  baseMutableMap = mutableMapOf<String,Int>()
-                                            baseMutableMap[parameter+"_"+plan] = value
-                                            eventBaseInt(context,abConfig.name,baseMutableMap)
+                                            val  baseMutableMap = mutableMapOf<String, Int>()
+                                            baseMutableMap[parameter + "_" + plan] = value
+                                            eventBaseInt(context, abConfig.name, baseMutableMap)
                                         }else{
-                                            mutableMap[parameter+"_"+plan] = value
+                                            mutableMap[parameter + "_" + plan] = value
                                         }
                                     }
                                 }
@@ -469,9 +486,9 @@ class ABTest(private val context: Context) {
     }
 
 
-    private val planArray = arrayOf("A","B","C","D")
-    private fun getPlan(position: Int,ver:Int,parent:String?):String{
-        var plan = if(position<4){
+    private val planArray = arrayOf("A", "B", "C", "D", "E", "F", "G", "H")
+    private fun getPlan(position: Int, ver: Int, parent: String?):String{
+        var plan = if(position<planArray.size){
             planArray[position]
         }else{
             "$position"
@@ -499,15 +516,15 @@ class ABTest(private val context: Context) {
                     return abHistory.value
                 }
             }
-            val abValue = ABValue(-1,fixedValue.value)
+            val abValue = ABValue(-1, fixedValue.value)
             abHistoryMap[name] = abValue
-            tools.setSharedPreferencesValue(KEY_AB_HISTORY_V2,Gson().toJson(abHistoryMap))
+            tools.setSharedPreferencesValue(KEY_AB_HISTORY_V2, Gson().toJson(abHistoryMap))
 
             return fixedValue.value
         }
     }
 
-    private fun getAdHistory(name:String): ABValue?{
+    private fun getAdHistory(name: String): ABValue?{
         return if(abHistoryMap.containsKey(name)){
             abHistoryMap[name]
         }else{
