@@ -205,52 +205,59 @@ class ABTest(private val context: Context) {
         }
     }
 
+    private var mapDayRetain = mutableMapOf<String,Int>()
+    private var uniqueUser = tools.getSharedPreferencesValue(KEY_UNIQUE_USER, "")
+
     fun addTest(config: ABConfig): ABTest {
         if(olConfig.findTest(config.name)!=null) return this
+
         olConfig.addTest(config)
-        var uniqueUser = tools.getSharedPreferencesValue(KEY_UNIQUE_USER, "")
-        val dayRetain = tools.getSharedPreferencesValue(KEY_DAY_RETAIN, "")
+
         val dayEventKey = KEY_DAY_EVENT+"_"+config.name
         var dayEvent = tools.getSharedPreferencesValue(dayEventKey, "")
 
         val value = getValue(config.name, null)
         if(value!=null&&value.position>=0){
             val plan = getPlan(value.position, config.ver, config.parentName)
-            if(uniqueUser==null||!uniqueUser.contains(config.name)){
+            if(uniqueUser==null||!uniqueUser!!.contains(config.name)){
                 uniqueUser+="${config.name},"
                 eventBase(context, config.name, mutableMapOf("base" to "独立用户_$plan"))
                 tools.setSharedPreferencesValue(KEY_UNIQUE_USER, uniqueUser)
             }
             eventBase(context, config.name, mutableMapOf("base" to "启动应用_$plan"))
 
-
-            val mapDayRetain = if(dayRetain.isNullOrEmpty()) {
-                mutableMapOf<String, Int>()
-            } else {
-                Gson().fromJson(dayRetain, object : TypeToken<MutableMap<String, Int>>() {}.type)
-            }
-            val dayNum = if(mapDayRetain.containsKey(config.name)){
-                mapDayRetain[config.name]?:0
-            }else{
-                0
-            }
             val nowDayKey = getDate()
+            //新的一天
             if(dayEvent.isNullOrEmpty()||!dayEvent.contains(nowDayKey)){
+                //获取留存天数
+                if(mapDayRetain.isEmpty()){
+                    val dayRetain = tools.getSharedPreferencesValue(KEY_DAY_RETAIN, "")
+                    if(!dayRetain.isNullOrEmpty()){
+                        mapDayRetain = Gson().fromJson(dayRetain, object : TypeToken<MutableMap<String, Int>>() {}.type)
+                    }
+                }
+                val dayNum = if(mapDayRetain.containsKey(config.name)){
+                    mapDayRetain[config.name]?:0
+                }else{
+                    0
+                }
+                //活跃
+                eventBase(context, config.name, mutableMapOf("base" to "活跃用户_$plan"))
+                //只计算7天内的留存
                 if(dayNum<=7){
-                    eventBase(context, config.name, mutableMapOf("base" to "活跃用户_$plan"))
                     eventBase(context, config.name, mutableMapOf("day_$plan" to "${firstDate}_$dayNum"))
+                    //保存留存天数+1
+                    mapDayRetain[config.name] = dayNum+1
+                    tools.setSharedPreferencesValue(KEY_DAY_RETAIN, Gson().toJson(mapDayRetain))
+                    //保存曾经记录过的日期
+                    dayEvent+= "$nowDayKey,"
+                    tools.setSharedPreferencesValue(dayEventKey, dayEvent)
                 }
             }
-            dayEvent+= "$nowDayKey,"
-            tools.setSharedPreferencesValue(dayEventKey, dayEvent)
-
-            mapDayRetain[config.name] = dayNum+1
-            tools.setSharedPreferencesValue(KEY_DAY_RETAIN, Gson().toJson(mapDayRetain))
 
             if(hasFirebase){
                 FirebaseHandler.setUserProperty(context, "ABTest",config.name+"_"+plan)
             }
-
         }
         return this
     }
