@@ -86,6 +86,22 @@ class ABTest(private val context: Context) {
         }
 
         @JvmStatic
+        fun addTestByJsonConfig(json:String?){
+            if(json.isNullOrEmpty()) return
+            try {
+                val config = Gson().fromJson<OLConfig>(json,OLConfig::class.java)
+                initOLConfig(config)
+            }catch (e:Exception){
+                e.printStackTrace()
+            }
+        }
+
+        @JvmStatic
+        fun addTestByInfoConfig(config:OLConfig?){
+            initOLConfig(config)
+        }
+
+        @JvmStatic
         fun getInstance(context: Context?): ABTest {
             if(!Companion::abTest.isInitialized&&context!=null){
                 abTest = ABTest(context)
@@ -115,10 +131,14 @@ class ABTest(private val context: Context) {
         private fun initOLConfig(){
             if(RemoteConfig.isOk()){
                 val tempOLConfig = RemoteConfig.getJsonObj(REMOTE_KEY, OLConfig::class.java)
-                if(tempOLConfig!=null){
-                    olConfig.copy(tempOLConfig){
-                        abTest.addTest(it)
-                    }
+                initOLConfig(tempOLConfig)
+            }
+        }
+
+        private fun initOLConfig(config:OLConfig?){
+            if(config!=null){
+                olConfig.copy(config){
+                    abTest.addTest(it)
                 }
             }
         }
