@@ -1,4 +1,5 @@
-# ABTest-UM
+# ABTest
+
 **一款简单易用的ABTest开源库**
 
 原理：通过给事件标签，添加A,B后缀来统计ABTest结果。
