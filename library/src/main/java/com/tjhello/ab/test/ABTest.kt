@@ -385,6 +385,9 @@ class ABTest(private val context: Context) {
                         val random = (Math.random()*testSize).toInt()
                         val abValue = ABValue(random, abConfig.data[random])
                         abHistoryMap[name] = abValue
+                        if(def==null){
+                            log("[getValue]:$name,${abValue.position},${abValue.value}")
+                        }
                         tools.setSharedPreferencesValue(KEY_AB_HISTORY_V2, Gson().toJson(abHistoryMap))
                         return abValue
                     }else{
@@ -392,6 +395,7 @@ class ABTest(private val context: Context) {
                         if(def!=null){
                             val value = ABValue(def)
                             abHistoryMap[name] = value
+                            log("[getValue-def]:$name,${value.position},${value.value}")
                             tools.setSharedPreferencesValue(KEY_AB_HISTORY_V2, Gson().toJson(abHistoryMap))
                             return value
                         }
@@ -403,6 +407,7 @@ class ABTest(private val context: Context) {
                 return ABValue(fixedValue)
             }
         }
+        log("[getValue-null]")
         return null
     }
 
@@ -431,16 +436,16 @@ class ABTest(private val context: Context) {
                                     if(abConfig.mergeEvent){
                                         val  baseMutableMap = mutableMapOf<String, String>()
                                         if(abConfig.mergeTag){
-                                            baseMutableMap[parameter + "_AB"] = value+"_"+plan
+                                            baseMutableMap[parameter +"_"+ abConfig.name + "_AB"] = value+"_"+plan
                                         }else{
-                                            baseMutableMap[parameter + "_" + plan] = value
+                                            baseMutableMap[parameter +"_"+ abConfig.name + "_" + plan] = value
                                         }
                                         eventBase(context, abConfig.name, baseMutableMap)
                                     }else{
                                         if(abConfig.mergeTag){
-                                            mutableMap[parameter + "_AB"] = value+"_"+plan
+                                            mutableMap[parameter +"_"+ abConfig.name + "_AB"] = value+"_"+plan
                                         }else{
-                                            mutableMap[parameter + "_" + plan] = value
+                                            mutableMap[parameter +"_"+ abConfig.name + "_" + plan] = value
                                         }
                                     }
                                 }
