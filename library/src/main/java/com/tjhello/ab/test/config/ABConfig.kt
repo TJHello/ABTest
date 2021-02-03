@@ -7,6 +7,7 @@ class ABConfig {
     var onlyNew = true//仅新用户参与测试
     var abVer = 0//AB测试目标版本号
     var data = mutableListOf<String>()//变体
+    var dataWeight = mutableListOf<Int>()
     var listenEvent = mutableListOf<String>()//需要监听的事件
     var parentName: String? = ""//父测试
     var parentValue: String? = ""//父测试的值

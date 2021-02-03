@@ -211,57 +211,65 @@ class ABTest(private val context: Context) {
     fun addTest(config: ABConfig): ABTest {
         if(olConfig.findTest(config.name)!=null) return this
 
-        olConfig.addTest(config)
+        if(canTest(config)){
+            olConfig.addTest(config)
+            val dayEventKey = KEY_DAY_EVENT+"_"+config.name
+            var dayEvent = tools.getSharedPreferencesValue(dayEventKey, "")
 
-        val dayEventKey = KEY_DAY_EVENT+"_"+config.name
-        var dayEvent = tools.getSharedPreferencesValue(dayEventKey, "")
+            val value = getValue(config.name, null)
+            if(value!=null&&value.position>=0){
+                val plan = getPlan(value.position, config.parentName)
+                if(uniqueUser==null||!uniqueUser!!.contains(config.name)){
+                    uniqueUser+="${config.name},"
+                    eventBase(context, config.name, mutableMapOf("base".getVerTag(config.ver) to "独立用户_$plan"))
+                    tools.setSharedPreferencesValue(KEY_UNIQUE_USER, uniqueUser)
+                }
+                eventBase(context, config.name, mutableMapOf("base".getVerTag(config.ver) to "启动应用_$plan"))
 
-        val value = getValue(config.name, null)
-        if(value!=null&&value.position>=0){
-            val plan = getPlan(value.position, config.ver, config.parentName)
-            if(uniqueUser==null||!uniqueUser!!.contains(config.name)){
-                uniqueUser+="${config.name},"
-                eventBase(context, config.name, mutableMapOf("base" to "独立用户_$plan"))
-                tools.setSharedPreferencesValue(KEY_UNIQUE_USER, uniqueUser)
-            }
-            eventBase(context, config.name, mutableMapOf("base" to "启动应用_$plan"))
-
-            val nowDayKey = getDate()
-            //新的一天
-            if(dayEvent.isNullOrEmpty()||!dayEvent.contains(nowDayKey)){
-                //获取留存天数
-                if(mapDayRetain.isEmpty()){
-                    val dayRetain = tools.getSharedPreferencesValue(KEY_DAY_RETAIN, "")
-                    if(!dayRetain.isNullOrEmpty()){
-                        mapDayRetain = Gson().fromJson(dayRetain, object : TypeToken<MutableMap<String, Int>>() {}.type)
+                val nowDayKey = getDate()
+                //新的一天
+                if(dayEvent.isNullOrEmpty()||!dayEvent.contains(nowDayKey)){
+                    //获取留存天数
+                    if(mapDayRetain.isEmpty()){
+                        val dayRetain = tools.getSharedPreferencesValue(KEY_DAY_RETAIN, "")
+                        if(!dayRetain.isNullOrEmpty()){
+                            mapDayRetain = Gson().fromJson(dayRetain, object : TypeToken<MutableMap<String, Int>>() {}.type)
+                        }
+                    }
+                    val dayNum = if(mapDayRetain.containsKey(config.name)){
+                        mapDayRetain[config.name]?:0
+                    }else{
+                        0
+                    }
+                    //活跃
+                    eventBase(context, config.name, mutableMapOf("base".getVerTag(config.ver) to "活跃用户_$plan"))
+                    //只计算7天内的留存
+                    if(dayNum<=7){
+                        eventBase(context, config.name, mutableMapOf("day_$plan".getVerTag(config.ver) to "${firstDate}_$dayNum"))
+                        //保存留存天数+1
+                        mapDayRetain[config.name] = dayNum+1
+                        tools.setSharedPreferencesValue(KEY_DAY_RETAIN, Gson().toJson(mapDayRetain))
+                        //保存曾经记录过的日期
+                        dayEvent+= "$nowDayKey,"
+                        tools.setSharedPreferencesValue(dayEventKey, dayEvent)
                     }
                 }
-                val dayNum = if(mapDayRetain.containsKey(config.name)){
-                    mapDayRetain[config.name]?:0
-                }else{
-                    0
-                }
-                //活跃
-                eventBase(context, config.name, mutableMapOf("base" to "活跃用户_$plan"))
-                //只计算7天内的留存
-                if(dayNum<=7){
-                    eventBase(context, config.name, mutableMapOf("day_$plan" to "${firstDate}_$dayNum"))
-                    //保存留存天数+1
-                    mapDayRetain[config.name] = dayNum+1
-                    tools.setSharedPreferencesValue(KEY_DAY_RETAIN, Gson().toJson(mapDayRetain))
-                    //保存曾经记录过的日期
-                    dayEvent+= "$nowDayKey,"
-                    tools.setSharedPreferencesValue(dayEventKey, dayEvent)
-                }
-            }
 
-            if(hasFirebase){
-                FirebaseHandler.setUserProperty(context, "ABTest",config.name+"_"+plan)
+                if(hasFirebase){
+                    FirebaseHandler.setUserProperty(context, "ABTest",config.name.getVerTag(config.ver)+"_"+plan)
+                }
             }
         }
         return this
     }
 
+    private fun String.getVerTag(ver:Int):String{
+        return if(ver>0){
+            this+"_"+ver
+        }else{
+            this
+        }
+    }
 
     fun fixedValue(name: String, value: String, onlyNew: Boolean = false): ABTest {
         olConfig.fixedValue(name, value, onlyNew)
@@ -358,9 +366,8 @@ class ABTest(private val context: Context) {
                 return false
             }
         }
-        val value = getValue(abConfig.name, null)
         val isNow = firstVersionCode >=abConfig.abVer//当前测试新增用户
-        return value!=null&&value.position>=0 && if(abConfig.onlyNew) isNow else true
+        return if(abConfig.onlyNew) isNow else true
     }
 
     fun canTest(name: String):Boolean{
@@ -432,20 +439,22 @@ class ABTest(private val context: Context) {
                             if(canTest(abConfig)){
                                 val data = getValue(abConfig.name, null)
                                 if(data!=null&&data.position>=0){
-                                    val plan = getPlan(data.position, abConfig.ver, abConfig.parentName)
+                                    val plan = getPlan(data.position, abConfig.parentName)
                                     if(abConfig.mergeEvent){
                                         val  baseMutableMap = mutableMapOf<String, String>()
                                         if(abConfig.mergeTag){
-                                            baseMutableMap[parameter +"_"+ abConfig.name + "_AB"] = value+"_"+plan
+                                            baseMutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_AB"] = value+"_"+plan
+                                            baseMutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_AB"] = value
                                         }else{
-                                            baseMutableMap[parameter +"_"+ abConfig.name + "_" + plan] = value
+                                            baseMutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_" + plan] = value
                                         }
                                         eventBase(context, abConfig.name, baseMutableMap)
                                     }else{
                                         if(abConfig.mergeTag){
-                                            mutableMap[parameter +"_"+ abConfig.name + "_AB"] = value+"_"+plan
+                                            mutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_AB"] = value+"_"+plan
+                                            mutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_AB"] = value
                                         }else{
-                                            mutableMap[parameter +"_"+ abConfig.name + "_" + plan] = value
+                                            mutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_" + plan] = value
                                         }
                                     }
                                 }
@@ -479,13 +488,13 @@ class ABTest(private val context: Context) {
                                 if(canTest(abConfig)){
                                     val data = getValue(abConfig.name, null)
                                     if(data!=null&&data.position>=0){
-                                        val plan = getPlan(data.position, abConfig.ver, abConfig.parentName)
+                                        val plan = getPlan(data.position, abConfig.parentName)
                                         if(abConfig.mergeEvent){
                                             val  baseMutableMap = mutableMapOf<String, Int>()
-                                            baseMutableMap[parameter + "_" + plan] = value
+                                            baseMutableMap[parameter.getVerTag(abConfig.ver) + "_" + plan] = value
                                             eventBaseInt(context, abConfig.name, baseMutableMap)
                                         }else{
-                                            mutableMap[parameter + "_" + plan] = value
+                                            mutableMap[parameter.getVerTag(abConfig.ver) + "_" + plan] = value
                                         }
                                     }
                                 }
@@ -499,14 +508,11 @@ class ABTest(private val context: Context) {
 
 
     private val planArray = arrayOf("A", "B", "C", "D", "E", "F", "G", "H")
-    private fun getPlan(position: Int, ver: Int, parent: String?):String{
+    private fun getPlan(position: Int, parent: String?):String{
         var plan = if(position<planArray.size){
             planArray[position]
         }else{
             "$position"
-        }
-        if(ver>0){
-            plan+= "_$ver"
         }
         if(!parent.isNullOrEmpty()){
             plan = parent+"_"+plan
