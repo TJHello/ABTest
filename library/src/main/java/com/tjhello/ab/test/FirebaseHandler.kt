@@ -49,6 +49,30 @@ object FirebaseHandler {
         FirebaseAnalytics.getInstance(context).logEvent(eventId,bundle)
     }
 
+    fun eventAny(context: Context,eventId: String,map: MutableMap<String, Any>){
+        val bundle = Bundle()
+        val keySet = map.keys
+        for(key in keySet){
+            val value = map[key]
+            if(value!=null){
+                if(value is String){
+                    bundle.putString(key,value)
+                }else if(value is Int){
+                    bundle.putInt(key,value)
+                }else if(value is Float){
+                    bundle.putFloat(key,value)
+                }else if(value is Double){
+                    bundle.putDouble(key,value)
+                }else if(value is Long){
+                    bundle.putLong(key,value)
+                }else if(value is Boolean){
+                    bundle.putBoolean(key,value)
+                }
+            }
+        }
+        FirebaseAnalytics.getInstance(context).logEvent(eventId,bundle)
+    }
+
 
     fun setUserProperty(context: Context,tag:String,att:String){
         FirebaseAnalytics.getInstance(context).setUserProperty(tag,att)

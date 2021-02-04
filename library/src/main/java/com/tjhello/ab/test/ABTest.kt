@@ -50,6 +50,7 @@ class ABTest(private val context: Context) {
         private var hasFirebase = checkFirebaseSDK()
 
         private var abHistoryMap = mutableMapOf<String, ABValue>()
+        private var exceptionCountryList = mutableListOf<String>()
 
 
         @JvmStatic
@@ -135,6 +136,11 @@ class ABTest(private val context: Context) {
             return list
         }
 
+        @JvmStatic
+        fun exceptionCountry(vararg countryList:String){
+            exceptionCountryList.addAll(countryList)
+        }
+
         private fun initOLConfig(){
             if(RemoteConfig.isOk()){
                 val tempOLConfig = RemoteConfig.getJsonObj(REMOTE_KEY, OLConfig::class.java)
@@ -174,6 +180,10 @@ class ABTest(private val context: Context) {
         }
 
         private fun eventBase(context: Context, eventId: String, map: MutableMap<String, String>){
+            if(exceptionCountryList.contains(Locale.getDefault().country)) {
+                log("[event-exception]:$eventId=>\n" + Gson().toJson(map))
+                return
+            }
             if(!isDebug){
                 if(hasUmeng){
                     UMengHandler.event(context, eventId, map)
@@ -186,12 +196,29 @@ class ABTest(private val context: Context) {
         }
 
         private fun eventBaseInt(context: Context, eventId: String, map: MutableMap<String, Int>){
+            if(exceptionCountryList.contains(Locale.getDefault().country)) {
+                log("[event-exception]:$eventId=>\n" + Gson().toJson(map))
+                return
+            }
             if(!isDebug){
                 if(hasUmeng){
                     UMengHandler.eventObject(context, eventId, map)
                 }
                 if(hasFirebase){
                     FirebaseHandler.eventNum(context, eventId, map)
+                }
+            }
+            log("[event]:$eventId=>\n" + Gson().toJson(map))
+        }
+
+        private fun eventBaseFirebase(context: Context, eventId: String, map: MutableMap<String, Any>){
+            if(exceptionCountryList.contains(Locale.getDefault().country)) {
+                log("[event-exception]:$eventId=>\n" + Gson().toJson(map))
+                return
+            }
+            if(!isDebug){
+                if(hasFirebase){
+                    FirebaseHandler.eventAny(context, eventId, map)
                 }
             }
             log("[event]:$eventId=>\n" + Gson().toJson(map))
@@ -276,7 +303,7 @@ class ABTest(private val context: Context) {
         return this
     }
 
-    fun getString(name: String, def: String?):String?{
+    fun getString(name: String, def: String):String{
         val value = getValue(name, def)
         if(value!=null){
             return value.value
@@ -286,7 +313,7 @@ class ABTest(private val context: Context) {
 
     fun getInt(name: String, def: Int):Int{
         val value = getString(name, "$def")
-        if(!value.isNullOrEmpty()){
+        if(value.isNotEmpty()){
             try {
                 return value.toInt()
             }catch (e: Exception){
@@ -298,7 +325,7 @@ class ABTest(private val context: Context) {
 
     fun getFloat(name: String, def: Float):Float{
         val value = getString(name, "$def")
-        if(!value.isNullOrEmpty()){
+        if(value.isNotEmpty()){
             try {
                 return value.toFloat()
             }catch (e: Exception){
@@ -310,7 +337,7 @@ class ABTest(private val context: Context) {
 
     fun getLong(name: String, def: Long):Long{
         val value = getString(name, "$def")
-        if(!value.isNullOrEmpty()){
+        if(value.isNotEmpty()){
             try {
                 return value.toLong()
             }catch (e: Exception){
@@ -321,8 +348,8 @@ class ABTest(private val context: Context) {
     }
 
     fun <T>getJsonInfo(name: String, aClass: Class<T>):T?{
-        val value = getString(name, null)
-        if(!value.isNullOrEmpty()){
+        val value = getString(name, "")
+        if(value.isNotEmpty()){
             try {
                 return Gson().fromJson(value, aClass)
             }catch (e: Exception){
@@ -350,6 +377,13 @@ class ABTest(private val context: Context) {
     fun eventInt(eventId: String, data: MutableMap<String, Int>){
         val map = createMapInt(eventId, data)
         eventBaseInt(context, eventId, map)
+    }
+
+    /**
+     * Firebase深度数据打点(不参与下划线规则)
+     */
+    fun eventFirebaseDeepData(eventId: String,data:MutableMap<String,Any>){
+        eventBaseFirebase(context,eventId,data)
     }
 
     private fun canTest(abConfig: ABConfig):Boolean{
