@@ -2,6 +2,8 @@ package com.tjhello.ab.test
 
 import android.content.Context
 import android.content.SharedPreferences.Editor
+import android.util.DisplayMetrics
+import android.view.WindowManager
 import java.util.*
 import java.util.concurrent.Executors
 
@@ -11,17 +13,17 @@ import java.util.concurrent.Executors
  * 使用:
  * 说明:
  **/
-internal class Tools(context: Context) {
+internal class Tools(private val context: Context) {
 
     companion object{
         private val threadPool = Executors.newFixedThreadPool(1)
 
         @JvmStatic
-        fun containsClass(name:String):Boolean{
+        fun containsClass(name: String):Boolean{
             return try {
                 Class.forName(name)
                 true
-            }catch (e:ClassNotFoundException){
+            }catch (e: ClassNotFoundException){
                 ABTestOld.log("Not imported:$name")
                 false
             }
@@ -48,7 +50,6 @@ internal class Tools(context: Context) {
 
     fun setSharedPreferencesValue(key: String?, value: Any?) {
         threadPool.submit {
-            ABTest.log("setSharedPreferencesValue:$key")
             val editor: Editor = pref.edit()
             if (value == null || value is String) {
                 editor.putString(key, value as String?)
@@ -66,5 +67,15 @@ internal class Tools(context: Context) {
     }
 
 
+    fun getScreenWidth():Int{
+        val dm = DisplayMetrics()
+        (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay.getMetrics(dm)
+        return dm.widthPixels
+    }
+    fun getScreenHeight():Int{
+        val dm = DisplayMetrics()
+        (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay.getMetrics(dm)
+        return dm.heightPixels
+    }
 
 }

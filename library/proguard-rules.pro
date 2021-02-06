@@ -32,5 +32,4 @@
     public static ** valueOf(java.lang.String);
 }
 
-
 -keep class com.google.firebase.analytics.**{*;}

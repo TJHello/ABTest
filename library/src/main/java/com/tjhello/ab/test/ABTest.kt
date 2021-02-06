@@ -30,6 +30,7 @@ class ABTest(private val context: Context) {
         private const val KEY_UNIQUE_USER = "ab_test_unique_user"
         private const val KEY_DAY_RETAIN = "ab_test_day_retain"
         private const val KEY_DAY_EVENT = "ab_test_day_event"
+        private const val KEY_UID = "ab_test_uid"
         private const val TAG = "ABTestLog"
 
         var isOpenLogcat = true
@@ -82,8 +83,20 @@ class ABTest(private val context: Context) {
                 e.printStackTrace()
                 mutableMapOf()
             }
+
+            var uid = tools.getSharedPreferencesValue(KEY_UID,"")
+            if(uid.isNullOrEmpty()){
+               uid = UUID.randomUUID().toString()
+                tools.setSharedPreferencesValue(KEY_UID,uid)
+            }
+
             if(hasFirebase){
                 FirebaseHandler.setUserProperty(context, "firstVersion", "$firstVersionCode")
+                FirebaseHandler.setUserProperty(context, "uuid", "$uid")
+                val width = tools.getScreenWidth()
+                val height = tools.getScreenHeight()
+                FirebaseHandler.setUserProperty(context, "deviceScreen", "$width*$height")
+                log("userProperty:firstVersion=$firstVersionCode,uuid=$uid,deviceScreen=$width*$height")
             }
             return abTest
         }
@@ -452,10 +465,13 @@ class ABTest(private val context: Context) {
         return null
     }
 
+    /**
+     * 基于AB方案创建一个新的eventMap
+     */
     private fun createMap(eventId: String, mutableMap: MutableMap<String, String>):MutableMap<String, String>{
         synchronized(olConfig) {
             val keySet = mutableMap.keys.toHashSet()
-            keySet.forEach{ parameter->
+            keySet.forEach{ parameter->//遍历该事件所有维度
                 val value = mutableMap[parameter]
                 if(value!=null){
                     if(isFirebaseAbMode){
@@ -466,6 +482,7 @@ class ABTest(private val context: Context) {
                             }
                         }
                     }else{
+                        //遍历所有AB方案
                         olConfig.allABConfig().forEach { abConfig->
                             if(abConfig.listenEvent.isNullOrEmpty()
                                 ||abConfig.listenEvent.contains(eventId)
@@ -478,7 +495,6 @@ class ABTest(private val context: Context) {
                                         val  baseMutableMap = mutableMapOf<String, String>()
                                         if(abConfig.mergeTag){
                                             baseMutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_AB"] = value+"_"+plan
-                                            baseMutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_AB"] = value
                                         }else{
                                             baseMutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_" + plan] = value
                                         }
@@ -486,7 +502,6 @@ class ABTest(private val context: Context) {
                                     }else{
                                         if(abConfig.mergeTag){
                                             mutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_AB"] = value+"_"+plan
-                                            mutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_AB"] = value
                                         }else{
                                             mutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_" + plan] = value
                                         }

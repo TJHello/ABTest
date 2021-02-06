@@ -13,21 +13,15 @@ import java.util.concurrent.Executors
  */
 object UMengHandler {
 
-    private val threadPool = Executors.newFixedThreadPool(3)
-
     @JvmStatic
     fun event(context: Context,eventId:String,map:MutableMap<String,String>){
-        threadPool.submit {
-            MobclickAgent.onEvent(context,eventId,map)
-        }
+        MobclickAgent.onEvent(context,eventId,map)
     }
 
 
     @JvmStatic
     fun eventObject(context: Context,eventId:String,map:MutableMap<String,out Any>){
-        threadPool.submit {
-            MobclickAgent.onEventObject(context,eventId,map)
-        }
+        MobclickAgent.onEventObject(context,eventId,map)
     }
 
     fun onExit(context: Context){
