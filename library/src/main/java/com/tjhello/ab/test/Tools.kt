@@ -8,7 +8,7 @@ import java.util.*
 import java.util.concurrent.Executors
 
 /**
- * 创建者：TJbaobao
+ * 创建者：EYEWIND@TJHello
  * 时间:2020/2/24 10:30
  * 使用:
  * 说明:
@@ -47,7 +47,6 @@ internal class Tools(private val context: Context) {
         return null
     }
 
-
     fun setSharedPreferencesValue(key: String?, value: Any?) {
         threadPool.submit {
             val editor: Editor = pref.edit()
@@ -66,12 +65,12 @@ internal class Tools(private val context: Context) {
         }
     }
 
-
     fun getScreenWidth():Int{
         val dm = DisplayMetrics()
         (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay.getMetrics(dm)
         return dm.widthPixels
     }
+
     fun getScreenHeight():Int{
         val dm = DisplayMetrics()
         (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay.getMetrics(dm)

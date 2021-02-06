@@ -18,7 +18,7 @@ import java.util.*
  * 时间:2020/12/17  19:14
  */
 @Suppress("unused")
-class ABTest(private val context: Context) {
+class ABTest private constructor(private val context: Context) {
 
     private val tools = Tools(context)
 
@@ -40,6 +40,7 @@ class ABTest(private val context: Context) {
 
         private const val REMOTE_KEY = "ABTestConfig"
 
+        @JvmStatic
         private lateinit var abTest : ABTest
 
         private val olConfig = OLConfig()
@@ -91,6 +92,7 @@ class ABTest(private val context: Context) {
             }
 
             if(hasFirebase){
+                //添加基础用户属性
                 FirebaseHandler.setUserProperty(context, "firstVersion", "$firstVersionCode")
                 FirebaseHandler.setUserProperty(context, "uuid", "$uid")
                 val width = tools.getScreenWidth()
@@ -128,6 +130,14 @@ class ABTest(private val context: Context) {
                 abTest = ABTest(context)
             }
             return abTest
+        }
+
+        @JvmStatic
+        fun getInstance():ABTest?{
+            if(Companion::abTest.isInitialized){
+               return abTest
+            }
+            return null
         }
 
         @JvmStatic
@@ -171,6 +181,9 @@ class ABTest(private val context: Context) {
 
         private fun initOLConfig(config: OLConfig?){
             if(config!=null){
+                if(config.log!=0){
+                    isOpenLogcat = config.log==1
+                }
                 olConfig.copy(config){
                     abTest.addTest(it)
                 }
@@ -316,6 +329,7 @@ class ABTest(private val context: Context) {
         return this
     }
 
+    //region===========================获取值===========================
     fun getString(name: String, def: String):String{
         val value = getValue(name, def)
         if(value!=null){
@@ -371,6 +385,9 @@ class ABTest(private val context: Context) {
         }
         return null
     }
+    //endregion
+
+    //region===========================打点===========================
 
     fun event(eventId: String, data: String){
         val map = createMap(eventId, mutableMapOf("data" to data))
@@ -399,7 +416,10 @@ class ABTest(private val context: Context) {
         eventBaseFirebase(context,eventId,data)
     }
 
+    //endregion
+
     private fun canTest(abConfig: ABConfig):Boolean{
+        //父子测试判断
         abConfig.parentName?.let { parentTest->
             if(parentTest.isNotEmpty()){
                 val value = getValue(parentTest, null)
@@ -408,11 +428,13 @@ class ABTest(private val context: Context) {
                 }
             }
         }
+        //控制体判断
         abConfig.ctrl?.let {
             if(!it.check(context)){
                 return false
             }
         }
+        //版本号判断
         val isNow = firstVersionCode >=abConfig.abVer//当前测试新增用户
         return if(abConfig.onlyNew) isNow else true
     }
@@ -420,7 +442,8 @@ class ABTest(private val context: Context) {
     fun canTest(name: String):Boolean{
         val config = olConfig.findTest(name)
         if(config!=null){
-            return canTest(config)
+            val value = getValue(name,null)
+            return canTest(config) && (value!=null&&value.position>=0)
         }
         return false
     }
@@ -455,9 +478,11 @@ class ABTest(private val context: Context) {
                         }
                     }
                 }else{
+                    //返回历史值
                     return adHistory
                 }
             }else{
+                //返回固定值
                 return ABValue(fixedValue)
             }
         }
@@ -484,26 +509,30 @@ class ABTest(private val context: Context) {
                     }else{
                         //遍历所有AB方案
                         olConfig.allABConfig().forEach { abConfig->
+                            //如果没有指定监听的事件或者该事件是指定监听的事件
                             if(abConfig.listenEvent.isNullOrEmpty()
                                 ||abConfig.listenEvent.contains(eventId)
-                                ||eventId==abConfig.name)
-                            if(canTest(abConfig)){
-                                val data = getValue(abConfig.name, null)
-                                if(data!=null&&data.position>=0){
-                                    val plan = getPlan(data.position, abConfig.parentName)
-                                    if(abConfig.mergeEvent){
-                                        val  baseMutableMap = mutableMapOf<String, String>()
-                                        if(abConfig.mergeTag){
-                                            baseMutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_AB"] = value+"_"+plan
+                                ||eventId==abConfig.name){
+                                //判断大环境是否参与AB测试
+                                if(canTest(abConfig)){
+                                    //获取AB的值
+                                    val data = getValue(abConfig.name, null)
+                                    if(data!=null&&data.position>=0){//如果position小于0，代表不参与AB
+                                        val plan = getPlan(data.position, abConfig.parentName)
+                                        if(abConfig.mergeEvent){
+                                            val  baseMutableMap = mutableMapOf<String, String>()
+                                            if(abConfig.mergeTag){
+                                                baseMutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_AB"] = value+"_"+plan
+                                            }else{
+                                                baseMutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_" + plan] = value
+                                            }
+                                            eventBase(context, abConfig.name, baseMutableMap)
                                         }else{
-                                            baseMutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_" + plan] = value
-                                        }
-                                        eventBase(context, abConfig.name, baseMutableMap)
-                                    }else{
-                                        if(abConfig.mergeTag){
-                                            mutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_AB"] = value+"_"+plan
-                                        }else{
-                                            mutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_" + plan] = value
+                                            if(abConfig.mergeTag){
+                                                mutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_AB"] = value+"_"+plan
+                                            }else{
+                                                mutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_" + plan] = value
+                                            }
                                         }
                                     }
                                 }
@@ -554,7 +583,6 @@ class ABTest(private val context: Context) {
             return mutableMap
         }
     }
-
 
     private val planArray = arrayOf("A", "B", "C", "D", "E", "F", "G", "H")
     private fun getPlan(position: Int, parent: String?):String{

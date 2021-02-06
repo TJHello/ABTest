@@ -8,6 +8,7 @@ class OLConfig {
 
     private val abList = mutableListOf<ABConfig>()
     private val fixed = mutableMapOf<String, Fixed>()
+    val log = 0//0不生效，1打开日志，2关闭日志
 
     inner class Fixed{
         var onlyNew = true
