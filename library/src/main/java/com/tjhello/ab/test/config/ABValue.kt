@@ -20,4 +20,6 @@ class ABValue {
     var position = -1
     var value = ""
 
+
+
 }

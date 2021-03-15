@@ -46,11 +46,11 @@ class TJApplication : Application() {
 
         //通过Firebase-RemoteConfig在线配置ABTest（需要另外接入该库）
         ABTest.init(this, true)
-        RemoteConfig.init(){
-            if(it){
-                ABTest.addTestByRemoteConfig()
-            }
-        }
+//        RemoteConfig.init(){
+//            if(it){
+//                ABTest.addTestByRemoteConfig()
+//            }
+//        }
 
         //通过自己的服务器在线配置ABTest
         ABTest.init(this, true)

@@ -10,6 +10,7 @@ import com.tjhello.ab.test.config.ABConfig
 import com.tjhello.ab.test.config.ABValue
 import com.tjhello.ab.test.config.OLConfig
 import java.text.DateFormat
+import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -25,6 +26,7 @@ class ABTest private constructor(private val context: Context) {
     companion object {
 
         private const val KEY_FIRST_VERSION_CODE = "ab_test_version_code"
+        private const val KEY_FIRST_VERSION_NAME = "ab_test_version_name"
         private const val KEY_FIRST_DATE = "ab_test_first_date"
         private const val KEY_AB_HISTORY_V2 = "ab_test_ab_history_v2"
         private const val KEY_UNIQUE_USER = "ab_test_unique_user"
@@ -46,6 +48,7 @@ class ABTest private constructor(private val context: Context) {
         private val olConfig = OLConfig()
 
         private var firstVersionCode = -1
+        private var firstVersionName = ""
         private var firstDate = ""
         private var nowVersionCode = -1
         private var hasUmeng = checkUmengSDK()
@@ -61,8 +64,11 @@ class ABTest private constructor(private val context: Context) {
             val tools = Tools(context)
 
             nowVersionCode = getNowVersionCode(context)
+            val nowVersionName = getNowVersionName(context)
             firstVersionCode = tools.getSharedPreferencesValue(KEY_FIRST_VERSION_CODE, -1)?:-1
-            firstDate = tools.getSharedPreferencesValue(KEY_FIRST_DATE, getDate())?: getDate()
+            firstVersionName = tools.getSharedPreferencesValue(KEY_FIRST_VERSION_NAME,"")?:""
+            val nowDate =  getDate()
+            firstDate = tools.getSharedPreferencesValue(KEY_FIRST_DATE,nowDate)?: nowDate
 
             if(firstVersionCode ==-1){
                 firstVersionCode = if(isFirstStart){
@@ -71,8 +77,18 @@ class ABTest private constructor(private val context: Context) {
                     1
                 }
                 tools.setSharedPreferencesValue(KEY_FIRST_VERSION_CODE, firstVersionCode)
-                tools.setSharedPreferencesValue(KEY_FIRST_DATE,firstDate)
+                tools.setSharedPreferencesValue(KEY_FIRST_DATE, firstDate)
             }
+
+            if(firstVersionName==""){
+                firstVersionName = if(isFirstStart){
+                    nowVersionName
+                }else{
+                    "0.0.1"
+                }
+                tools.setSharedPreferencesValue(KEY_FIRST_VERSION_NAME, firstVersionName)
+            }
+
             val abHistoryJSON = tools.getSharedPreferencesValue(KEY_AB_HISTORY_V2, "")?:""
             abHistoryMap = try {
                 if(abHistoryJSON.isEmpty()){
@@ -85,16 +101,17 @@ class ABTest private constructor(private val context: Context) {
                 mutableMapOf()
             }
 
-            var uid = tools.getSharedPreferencesValue(KEY_UID,"")
+            var uid = tools.getSharedPreferencesValue(KEY_UID, "")
             if(uid.isNullOrEmpty()){
                uid = UUID.randomUUID().toString()
-                tools.setSharedPreferencesValue(KEY_UID,uid)
+                tools.setSharedPreferencesValue(KEY_UID, uid)
             }
 
             if(hasFirebase){
                 //添加基础用户属性
                 FirebaseHandler.setUserProperty(context, "firstVersion", "$firstVersionCode")
-                FirebaseHandler.setUserProperty(context, "uuid", "$uid")
+                FirebaseHandler.setUserId(context, uid)
+//                FirebaseHandler.setUserProperty(context, "uuid", "$uid")
                 val width = tools.getScreenWidth()
                 val height = tools.getScreenHeight()
                 FirebaseHandler.setUserProperty(context, "deviceScreen", "$width*$height")
@@ -151,6 +168,11 @@ class ABTest private constructor(private val context: Context) {
         }
 
         @JvmStatic
+        fun getFirstVersionName():String{
+            return firstVersionName
+        }
+
+        @JvmStatic
         fun allABTestName():MutableList<String>{
             val list = mutableListOf<String>()
             olConfig.allABConfig().forEach {
@@ -160,7 +182,7 @@ class ABTest private constructor(private val context: Context) {
         }
 
         @JvmStatic
-        fun exceptionCountry(vararg countryList:String){
+        fun exceptionCountry(vararg countryList: String){
             exceptionCountryList.addAll(countryList)
         }
 
@@ -174,10 +196,13 @@ class ABTest private constructor(private val context: Context) {
 
         private fun getDate(): String {
             val dt = Date()
-            val sdf = DateFormat.getInstance() as SimpleDateFormat
+            val sdf = DateFormat.getDateInstance(DateFormat.DEFAULT, Locale.ENGLISH) as SimpleDateFormat
+            sdf.timeZone = TimeZone.getTimeZone("Asia/Hong_Kong")
             sdf.applyPattern("yyyy-MM-dd")
             return sdf.format(dt)
         }
+
+
 
         private fun initOLConfig(config: OLConfig?){
             if(config!=null){
@@ -195,6 +220,12 @@ class ABTest private constructor(private val context: Context) {
             val packageManager = context.packageManager
             val packageInfo = packageManager.getPackageInfo(context.packageName, 0)
             return packageInfo.versionCode
+        }
+
+        private fun getNowVersionName(context: Context):String{
+            val packageManager = context.packageManager
+            val packageInfo = packageManager.getPackageInfo(context.packageName, 0)
+            return packageInfo.versionName
         }
 
         private fun checkUmengSDK():Boolean{
@@ -247,7 +278,7 @@ class ABTest private constructor(private val context: Context) {
                     FirebaseHandler.eventAny(context, eventId, map)
                 }
             }
-            log("[event]:$eventId=>\n" + Gson().toJson(map))
+            log("[eventDeepData]:$eventId=>\n" + Gson().toJson(map))
         }
 
         @JvmStatic
@@ -258,7 +289,7 @@ class ABTest private constructor(private val context: Context) {
         }
     }
 
-    private var mapDayRetain = mutableMapOf<String,Int>()
+    private var mapDayRetain = mutableMapOf<String, Int>()
     private var uniqueUser = tools.getSharedPreferencesValue(KEY_UNIQUE_USER, "")
 
     fun addTest(config: ABConfig): ABTest {
@@ -309,14 +340,16 @@ class ABTest private constructor(private val context: Context) {
                 }
 
                 if(hasFirebase){
-                    FirebaseHandler.setUserProperty(context, "ABTest",config.name.getVerTag(config.ver)+"_"+plan)
+                    FirebaseHandler.setUserProperty(context, "ABTest", config.name.getVerTag(config.ver) + "_" + plan)
                 }
+
+                log("参与了【${config.name.getVerTag(config.ver)}】测试【$plan】方案")
             }
         }
         return this
     }
 
-    private fun String.getVerTag(ver:Int):String{
+    private fun String.getVerTag(ver: Int):String{
         return if(ver>0){
             this+"_"+ver
         }else{
@@ -374,6 +407,20 @@ class ABTest private constructor(private val context: Context) {
         return def
     }
 
+    fun getPlan(name:String,def: String):String{
+        val value = getValue(name,null)
+        if(value==null||value.position<0){
+            return def
+        }else{
+            olConfig.allABConfig().forEach { abConfig ->
+                if(abConfig.name==name){
+                    return getPlan(value.position,abConfig.parentName)
+                }
+            }
+            return def;
+        }
+    }
+
     fun <T>getJsonInfo(name: String, aClass: Class<T>):T?{
         val value = getString(name, "")
         if(value.isNotEmpty()){
@@ -412,8 +459,8 @@ class ABTest private constructor(private val context: Context) {
     /**
      * Firebase深度数据打点(不参与下划线规则)
      */
-    fun eventFirebaseDeepData(eventId: String,data:MutableMap<String,Any>){
-        eventBaseFirebase(context,eventId,data)
+    fun eventFirebaseDeepData(eventId: String, data: MutableMap<String, Any>){
+        eventBaseFirebase(context, eventId, data)
     }
 
     //endregion
@@ -442,7 +489,7 @@ class ABTest private constructor(private val context: Context) {
     fun canTest(name: String):Boolean{
         val config = olConfig.findTest(name)
         if(config!=null){
-            val value = getValue(name,null)
+            val value = getValue(name, null)
             return canTest(config) && (value!=null&&value.position>=0)
         }
         return false
@@ -522,16 +569,16 @@ class ABTest private constructor(private val context: Context) {
                                         if(abConfig.mergeEvent){
                                             val  baseMutableMap = mutableMapOf<String, String>()
                                             if(abConfig.mergeTag){
-                                                baseMutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_AB"] = value+"_"+plan
+                                                baseMutableMap[parameter + "_" + abConfig.name.getVerTag(abConfig.ver) + "_AB"] = value+"_"+plan
                                             }else{
-                                                baseMutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_" + plan] = value
+                                                baseMutableMap[parameter + "_" + abConfig.name.getVerTag(abConfig.ver) + "_" + plan] = value
                                             }
                                             eventBase(context, abConfig.name, baseMutableMap)
                                         }else{
                                             if(abConfig.mergeTag){
-                                                mutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_AB"] = value+"_"+plan
+                                                mutableMap[parameter + "_" + abConfig.name.getVerTag(abConfig.ver) + "_AB"] = value+"_"+plan
                                             }else{
-                                                mutableMap[parameter +"_"+ abConfig.name.getVerTag(abConfig.ver) + "_" + plan] = value
+                                                mutableMap[parameter + "_" + abConfig.name.getVerTag(abConfig.ver) + "_" + plan] = value
                                             }
                                         }
                                     }
