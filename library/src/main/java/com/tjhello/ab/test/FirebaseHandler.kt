@@ -25,6 +25,10 @@ import com.google.firebase.analytics.FirebaseAnalytics
  */
 object FirebaseHandler {
 
+    fun setUserId(context: Context,userId:String){
+        FirebaseAnalytics.getInstance(context).setUserId(userId)
+    }
+
     fun event(context: Context,eventId:String,map: MutableMap<String,String>){
         val bundle = Bundle()
         val keySet = map.keys
@@ -72,7 +76,6 @@ object FirebaseHandler {
         }
         FirebaseAnalytics.getInstance(context).logEvent(eventId,bundle)
     }
-
 
     fun setUserProperty(context: Context,tag:String,att:String){
         FirebaseAnalytics.getInstance(context).setUserProperty(tag,att)

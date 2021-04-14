@@ -61,7 +61,7 @@ dependencies {
 }
 
 
-ext.ver = '1.0.31'
+ext.ver = '1.0.37'
 ext.GROUP_ID = 'com.TJHello'
 ext.POM_ARTIFACT_ID = 'ABTest'
 
@@ -81,7 +81,7 @@ artifacts {
 uploadArchives {
     repositories {
         mavenDeployer {
-            repository(url: uri("C:\\Android\\unityWorkSpace\\ADEasyLib\\repo"))
+            repository(url: uri("/Users/TJHello/TJRepository/"))
             pom.groupId = GROUP_ID
             pom.artifactId = POM_ARTIFACT_ID
             pom.version = ver
