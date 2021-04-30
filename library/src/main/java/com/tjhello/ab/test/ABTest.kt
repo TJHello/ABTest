@@ -10,7 +10,6 @@ import com.tjhello.ab.test.config.ABConfig
 import com.tjhello.ab.test.config.ABValue
 import com.tjhello.ab.test.config.OLConfig
 import java.text.DateFormat
-import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -102,22 +101,21 @@ class ABTest private constructor(private val context: Context) {
                 mutableMapOf()
             }
 
+            val abSize = abTest.getAdTestSize()
+
             var uid = tools.getSharedPreferencesValue(KEY_UID, "")
             if(uid.isNullOrEmpty()){
                uid = UUID.randomUUID().toString()
                 tools.setSharedPreferencesValue(KEY_UID, uid)
             }
-
             if(hasFirebase){
                 //添加基础用户属性
                 FirebaseHandler.setUserProperty(context, "firstVersion", "$firstVersionCode")
-                FirebaseHandler.setUserId(context, uid)
-//                FirebaseHandler.setUserProperty(context, "uuid", "$uid")
                 val width = tools.getScreenWidth()
                 val height = tools.getScreenHeight()
                 FirebaseHandler.setUserProperty(context, "deviceScreen", "$width*$height")
-                log("userProperty:firstVersion=$firstVersionCode,uuid=$uid,deviceScreen=$width*$height")
             }
+            log("firstVersion=$firstVersionCode,已参加ABTest:$abSize")
             return abTest
         }
 
@@ -295,8 +293,7 @@ class ABTest private constructor(private val context: Context) {
 
     fun addTest(config: ABConfig): ABTest {
         if(olConfig.findTest(config.name)!=null) return this
-
-        if(canTest(config)){
+        if(canTest(config)&&getAdTestSize()==0){
             olConfig.addTest(config)
             val dayEventKey = KEY_DAY_EVENT+"_"+config.name
             var dayEvent = tools.getSharedPreferencesValue(dayEventKey, "")
@@ -339,7 +336,6 @@ class ABTest private constructor(private val context: Context) {
                         tools.setSharedPreferencesValue(dayEventKey, dayEvent)
                     }
                 }
-
                 if(hasFirebase){
                     FirebaseHandler.setUserProperty(context, "ABTest", config.name.getVerTag(config.ver) + "_" + plan)
                 }
@@ -496,6 +492,10 @@ class ABTest private constructor(private val context: Context) {
         return false
     }
 
+    fun isNewUser():Boolean{
+        return firstVersionCode == getNowVersionCode(context)
+    }
+
     private fun getValue(name: String, def: String?): ABValue?{
         synchronized(olConfig){
             val fixedValue = getFixedValue(name)
@@ -632,7 +632,7 @@ class ABTest private constructor(private val context: Context) {
         }
     }
 
-    private val planArray = arrayOf("CG","A", "B", "C", "D", "E", "F", "G", "H", "I")
+    private val planArray = arrayOf("A", "B", "C", "D", "E", "F", "G", "H", "I","J","K","L","M","N","O","P")
     private fun getPlan(position: Int, parent: String?):String{
         var plan = if(position<planArray.size){
             planArray[position]
@@ -673,6 +673,16 @@ class ABTest private constructor(private val context: Context) {
         }else{
             null
         }
+    }
+
+    private fun getAdTestSize():Int{
+        var size = 0
+        abHistoryMap.values.forEach {
+            if(it.position>=0){
+                size++
+            }
+        }
+        return size
     }
 
 }
