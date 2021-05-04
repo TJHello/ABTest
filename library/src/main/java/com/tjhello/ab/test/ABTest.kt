@@ -101,7 +101,7 @@ class ABTest private constructor(private val context: Context) {
                 mutableMapOf()
             }
 
-            val abSize = abTest.getAdTestSize()
+            val abSize = abTest.getAbTestSize()
 
             var uid = tools.getSharedPreferencesValue(KEY_UID, "")
             if(uid.isNullOrEmpty()){
@@ -293,11 +293,10 @@ class ABTest private constructor(private val context: Context) {
 
     fun addTest(config: ABConfig): ABTest {
         if(olConfig.findTest(config.name)!=null) return this
-        if(canTest(config)&&getAdTestSize()==0){
+        if(canTest(config)&&(getAbTestSize()==0||getAbTestNow()==config.name)){
             olConfig.addTest(config)
             val dayEventKey = KEY_DAY_EVENT+"_"+config.name
             var dayEvent = tools.getSharedPreferencesValue(dayEventKey, "")
-
             val value = getValue(config.name, null)
             if(value!=null&&value.position>=0){
                 val plan = getPlan(value.position, config.parentName)
@@ -675,7 +674,7 @@ class ABTest private constructor(private val context: Context) {
         }
     }
 
-    private fun getAdTestSize():Int{
+    private fun getAbTestSize():Int{
         var size = 0
         abHistoryMap.values.forEach {
             if(it.position>=0){
@@ -683,6 +682,16 @@ class ABTest private constructor(private val context: Context) {
             }
         }
         return size
+    }
+
+    private fun getAbTestNow():String?{
+        abHistoryMap.keys.toHashSet().forEach { name->
+            val abValue = abHistoryMap[name]
+            if(abValue!=null&&abValue.position>=0){
+                return name
+            }
+        }
+        return null
     }
 
 }
