@@ -39,6 +39,7 @@ class ABTest private constructor(private val context: Context) {
         //Firebase模式下，直接采用fixed的值来作为AB
         var isFirebaseAbMode = false
         var canEventFirebase = false
+        var canTestMinVerAB = true
 
         private const val REMOTE_KEY = "ABTestConfig"
 
@@ -63,8 +64,8 @@ class ABTest private constructor(private val context: Context) {
             val abTest = getInstance(context)
             val tools = Tools(context)
 
-            nowVersionCode = getNowVersionCode(context)
-            val nowVersionName = getNowVersionName(context)
+            nowVersionCode = tools.getNowVersionCode()
+            val nowVersionName = tools.getNowVersionName()
             firstVersionCode = tools.getSharedPreferencesValue(KEY_FIRST_VERSION_CODE, -1)?:-1
             firstVersionName = tools.getSharedPreferencesValue(KEY_FIRST_VERSION_NAME,"")?:""
             val nowDate =  getDate()
@@ -157,11 +158,6 @@ class ABTest private constructor(private val context: Context) {
         }
 
         @JvmStatic
-        fun isNewUser(versionCode: Int):Boolean{
-            return firstVersionCode >=versionCode
-        }
-
-        @JvmStatic
         fun getFirstVersion():Int{
             return firstVersionCode
         }
@@ -214,18 +210,7 @@ class ABTest private constructor(private val context: Context) {
             }
         }
 
-        //获取应用当前的版本号
-        private fun getNowVersionCode(context: Context):Int{
-            val packageManager = context.packageManager
-            val packageInfo = packageManager.getPackageInfo(context.packageName, 0)
-            return packageInfo.versionCode
-        }
 
-        private fun getNowVersionName(context: Context):String{
-            val packageManager = context.packageManager
-            val packageInfo = packageManager.getPackageInfo(context.packageName, 0)
-            return packageInfo.versionName
-        }
 
         private fun checkUmengSDK():Boolean{
             return Tools.containsClass("com.umeng.analytics.MobclickAgent")
@@ -297,7 +282,7 @@ class ABTest private constructor(private val context: Context) {
             olConfig.addTest(config)
             val dayEventKey = KEY_DAY_EVENT+"_"+config.name
             var dayEvent = tools.getSharedPreferencesValue(dayEventKey, "")
-            val value = getValue(config.name, null)
+            val value = getValue(config.name, config.defValue)
             if(value!=null&&value.position>=0){
                 val plan = getPlan(value.position, config.parentName)
                 if(uniqueUser==null||!uniqueUser!!.contains(config.name)){
@@ -410,10 +395,10 @@ class ABTest private constructor(private val context: Context) {
         }else{
             olConfig.allABConfig().forEach { abConfig ->
                 if(abConfig.name==name){
-                    return getPlan(value.position,abConfig.parentName)
+                    return "${abConfig.ver}_"+getPlan(value.position,abConfig.parentName)
                 }
             }
-            return def;
+            return def
         }
     }
 
@@ -478,7 +463,7 @@ class ABTest private constructor(private val context: Context) {
             }
         }
         //版本号判断
-        val isNow = firstVersionCode >=abConfig.abVer//当前测试新增用户
+        val isNow = if(canTestMinVerAB) firstVersionCode>=abConfig.abVer else firstVersionCode ==abConfig.abVer//当前测试新增用户
         return if(abConfig.onlyNew) isNow else true
     }
 
@@ -492,7 +477,7 @@ class ABTest private constructor(private val context: Context) {
     }
 
     fun isNewUser():Boolean{
-        return firstVersionCode == getNowVersionCode(context)
+        return firstVersionCode == tools.getNowVersionCode()
     }
 
     private fun getValue(name: String, def: String?): ABValue?{

@@ -2,7 +2,7 @@ package com.tjhello.ab.test.config
 
 class ABConfig {
     var name = ""//测试名
-    var desc = ""//测试说明
+    var defValue = ""//测试默认值
     var ver = 0//测试版本号
     var onlyNew = true//仅新用户参与测试
     var abVer = 0//AB测试目标版本号
@@ -19,7 +19,7 @@ class ABConfig {
 
     fun copy(ab: ABConfig): ABConfig {
         this.name = ab.name
-        this.desc = ab.desc
+        this.defValue = ab.defValue
         this.ver = ab.ver
         this.onlyNew = ab.onlyNew
         this.abVer = ab.abVer

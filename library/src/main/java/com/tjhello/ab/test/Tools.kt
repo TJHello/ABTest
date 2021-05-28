@@ -77,4 +77,17 @@ internal class Tools(private val context: Context) {
         return dm.heightPixels
     }
 
+
+    //获取应用当前的版本号
+    fun getNowVersionCode():Int{
+        val packageManager = context.packageManager
+        val packageInfo = packageManager.getPackageInfo(context.packageName, 0)
+        return packageInfo.versionCode
+    }
+
+    fun getNowVersionName():String{
+        val packageManager = context.packageManager
+        val packageInfo = packageManager.getPackageInfo(context.packageName, 0)
+        return packageInfo.versionName
+    }
 }
